@@ -103,7 +103,7 @@ export class SimulatedSefazClient implements SefazClient {
     const certError = requireCert(req.environment, req.hasCertificate);
     if (certError) return { ok: false, rejectionReason: certError };
 
-    if (!req.xml.includes("<NFe>") && !req.xml.includes("<nfe")) {
+    if (!/<NFe[\s>]/i.test(req.xml) && !/<nfe[\s>]/i.test(req.xml)) {
       return { ok: false, rejectionReason: "XML inválido para transmissão" };
     }
 

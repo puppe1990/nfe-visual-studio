@@ -82,11 +82,15 @@ SEFAZ_MODE=real SEFAZ_UF=SP npm run dev
 ```
 
 Cadastre o A1 em **Configurações** antes de transmitir em modo real.
-Homologação SEFAZ ainda exige CNPJ credenciado + XML layout oficial completo
-(o builder atual gera XML simplificado — expandir layout para produção fiscal).
+Homologação SEFAZ exige CNPJ credenciado na UF.
+
+`buildInvoiceXml` gera layout NF-e 4.00 com grupos obrigatórios:
+ide, emit/enderEmit, dest/enderDest, det/prod/imposto (ICMS SN ou ICMS00),
+total/ICMSTot, transp, pag, infAdic + chave de acesso 44 dígitos.
+Em homologação força o xNome do dest exigido pela SEFAZ.
 
 **Ainda não:**
-- Layout NF-e 4.00 100% completo (todos os grupos fiscais)
+- Todos os CSTs/CSOSN e regras de ICMS interestadual/ST completas
 - SMTP real em produção
 - Cobrança mensal
 

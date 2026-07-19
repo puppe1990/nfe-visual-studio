@@ -164,7 +164,7 @@ describe('nfe domain (turso file)', () => {
       if (!tx.ok) return
       expect(tx.data.invoice.status).toBe('authorized')
       expect(tx.data.invoice.number).toBe(1)
-      expect(tx.data.invoice.xmlContent).toContain('<NFe>')
+      expect(tx.data.invoice.xmlContent).toMatch(/<NFe[\s>]/)
 
       const company = await companies.getCompany(client, companyId)
       expect(company.ok).toBe(true)
