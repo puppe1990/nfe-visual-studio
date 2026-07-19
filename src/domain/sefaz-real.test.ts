@@ -9,15 +9,96 @@ import {
   signNFeXml,
 } from "./sefaz-sign";
 import { buildAutorizacaoSoap, buildEnviNFe, parseAuthorizeResponse } from "./sefaz-soap";
+import type { Company, Customer, Invoice } from "./types";
+import { buildInvoiceXml } from "./xml-export";
 
-const sampleNFe = `<?xml version="1.0" encoding="UTF-8"?>
-<NFe xmlns="http://www.portalfiscal.inf.br/nfe">
-  <infNFe Id="NFe35260704252011000110550010000000011000000010" versao="4.00">
-    <ide><cUF>35</cUF><mod>55</mod><serie>1</serie><nNF>1</nNF><tpAmb>2</tpAmb></ide>
-    <emit><CNPJ>04252011000110</CNPJ><xNome>Teste</xNome></emit>
-    <total><ICMSTot><vNF>10.00</vNF></ICMSTot></total>
-  </infNFe>
-</NFe>`;
+const company: Company = {
+  id: 1,
+  name: "Comercial LTDA",
+  tradeName: null,
+  document: "04252011000110",
+  stateRegistration: "123456789012",
+  email: null,
+  phone: null,
+  zip: "01001000",
+  street: "Rua Teste",
+  number: "100",
+  complement: null,
+  district: "Centro",
+  city: "Sao Paulo",
+  state: "SP",
+  taxRegime: "simples",
+  nfeSeries: 1,
+  nextNfeNumber: 1,
+  sefazEnvironment: "homologation",
+  createdAt: 0,
+  updatedAt: 0,
+};
+
+const customer: Customer = {
+  id: 1,
+  companyId: 1,
+  name: "Cliente",
+  document: "52998224725",
+  stateRegistration: null,
+  email: null,
+  phone: null,
+  zip: "01310100",
+  street: "Av Paulista",
+  number: "1000",
+  complement: null,
+  district: "Bela Vista",
+  city: "Sao Paulo",
+  state: "SP",
+  notes: null,
+  createdAt: 0,
+  updatedAt: 0,
+};
+
+const invoice: Invoice = {
+  id: 1,
+  companyId: 1,
+  customerId: 1,
+  number: 1,
+  series: 1,
+  nature: "Venda",
+  cfop: "5102",
+  status: "draft",
+  subtotalCents: 1000,
+  taxCents: 60,
+  stCents: 0,
+  totalCents: 1060,
+  xmlContent: null,
+  rejectionReason: null,
+  sefazProtocol: null,
+  accessKey: null,
+  cancelProtocol: null,
+  cancelJustification: null,
+  canceledAt: null,
+  issuedAt: null,
+  items: [
+    {
+      id: 1,
+      invoiceId: 1,
+      productId: 1,
+      description: "Item",
+      ncm: "73181500",
+      quantity: 1,
+      unitPriceCents: 1000,
+      totalCents: 1000,
+      createdAt: 0,
+    },
+  ],
+  createdAt: 0,
+  updatedAt: 0,
+};
+
+const sampleNFe = buildInvoiceXml({
+  company,
+  customer,
+  invoice,
+  cNF: "12345678",
+});
 
 describe("sefaz endpoints", () => {
   it("resolves SP and SVRS", () => {

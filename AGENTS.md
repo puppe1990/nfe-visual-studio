@@ -89,7 +89,13 @@ ide, emit/enderEmit, dest/enderDest, det/prod/imposto (ICMS SN ou ICMS00),
 total/ICMSTot, transp, pag, infAdic + chave de acesso 44 dígitos.
 Em homologação força o xNome do dest exigido pela SEFAZ.
 
+**Validação pré-envio (layout 4.00):**
+- `validateNFeXmlSchema` checa campos obrigatórios/formatos (equiv. XSD prático)
+- Rejeições SEFAZ (`cStat`) mapeadas em `sefaz-cstat.ts` com “o que fazer”
+- Rodada automaticamente em `transmitInvoice` e no `RealSefazClient`
+
 **Ainda não:**
+- Pacote XSD oficial PL multi-arquivo embutido
 - Todos os CSTs/CSOSN e regras de ICMS interestadual/ST completas
 - SMTP real em produção
 - Cobrança mensal

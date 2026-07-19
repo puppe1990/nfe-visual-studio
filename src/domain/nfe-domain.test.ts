@@ -31,6 +31,13 @@ describe('nfe domain (turso file)', () => {
       taxRegime: 'simples',
       nfeSeries: 1,
       nextNfeNumber: 1,
+      street: 'Rua Teste',
+      number: '100',
+      district: 'Centro',
+      city: 'Sao Paulo',
+      state: 'SP',
+      zip: '01001000',
+      stateRegistration: '123456789012',
     })
     expect(company.ok).toBe(true)
     if (!company.ok) throw new Error('setup company failed')
@@ -105,11 +112,17 @@ describe('nfe domain (turso file)', () => {
       const customer = await customers.createCustomer(client, companyId, {
         name: 'Mercado Bom Preço',
         document: VALID_CPF,
+        street: 'Rua A',
+        number: '10',
+        district: 'Centro',
+        city: 'Sao Paulo',
+        state: 'SP',
+        zip: '01001000',
       })
       if (!customer.ok) throw new Error('customer')
       const product = await products.createProduct(client, companyId, {
         name: 'Serviço de consultoria',
-        ncm: '99999999',
+        ncm: '73181500',
         priceCents: 150_000,
       })
       if (!product.ok) throw new Error('product')

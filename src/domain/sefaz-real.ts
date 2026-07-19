@@ -26,6 +26,8 @@ import type {
   SefazInutilizeRequest,
   SefazInutilizeResult,
 } from "./sefaz";
+import { formatSefazRejection, isSefazAuthorizedCStat } from "./sefaz-cstat";
+import { formatSchemaIssues, validateNFeXmlSchema } from "./nfe-schema-validate";
 
 export type RealSefazClientOptions = {
   /** UF do emitente (default SP). */
@@ -73,6 +75,14 @@ export class RealSefazClient implements SefazClient {
     }
 
     try {
+      const schema = validateNFeXmlSchema(req.xml);
+      if (!schema.ok) {
+        return {
+          ok: false,
+          rejectionReason: formatSchemaIssues(schema.issues),
+        };
+      }
+
       const a1 = loadA1FromPfx(material.pfxBase64, material.password);
       const nfe = extractNFeXml(req.xml);
       const signed = signNFeXml(nfe, a1);
@@ -121,18 +131,16 @@ export class RealSefazClient implements SefazClient {
       }
 
       const cStat = parsed.cStat ?? "";
-      // 100 = autorizado; 104 = lote processado com prot dentro
+      // 100/150 = autorizado; 104 = lote processado com prot dentro
       const authorized =
-        cStat === "100" ||
+        isSefazAuthorizedCStat(cStat) ||
         (cStat === "104" && Boolean(parsed.nProt)) ||
         Boolean(parsed.nProt && parsed.chNFe);
 
       if (!authorized) {
         return {
           ok: false,
-          rejectionReason:
-            parsed.xMotivo ||
-            `SEFAZ rejeitou (cStat=${cStat || "desconhecido"})`,
+          rejectionReason: formatSefazRejection(cStat, parsed.xMotivo),
         };
       }
 
@@ -209,7 +217,10 @@ export class RealSefazClient implements SefazClient {
       }
       return {
         ok: false,
-        rejectionReason: xMotivo || `Cancelamento rejeitado (cStat=${cStat})`,
+        rejectionReason: formatSefazRejection(
+          cStat,
+          xMotivo || "Cancelamento rejeitado",
+        ),
       };
     } catch (err) {
       return {
@@ -276,7 +287,10 @@ export class RealSefazClient implements SefazClient {
       }
       return {
         ok: false,
-        rejectionReason: xMotivo || `Inutilização rejeitada (cStat=${cStat})`,
+        rejectionReason: formatSefazRejection(
+          cStat,
+          xMotivo || "Inutilização rejeitada",
+        ),
       };
     } catch (err) {
       return {

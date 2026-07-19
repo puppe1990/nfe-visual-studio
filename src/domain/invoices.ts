@@ -18,6 +18,11 @@ import type {
   InvoiceStatus,
   ServiceResult,
 } from './types'
+import {
+  formatSchemaIssues,
+  validateNFeXmlSchema,
+} from './nfe-schema-validate'
+import { formatSefazRejection } from './sefaz-cstat'
 import { buildInvoiceXml } from './xml-export'
 
 function mapItem(row: Record<string, unknown>): InvoiceItem {
@@ -377,17 +382,49 @@ export async function transmitInvoice(
   const customer = await getCustomer(client, companyId, invoice.customerId)
   if (!customer.ok) return customer
 
-  const xml = buildInvoiceXml({
-    company: company.data.company,
-    customer: customer.data.customer,
-    invoice: {
-      ...invoice,
-      number,
-      series,
-      status: 'authorized',
-      items,
-    },
-  })
+  let xml: string
+  try {
+    xml = buildInvoiceXml({
+      company: company.data.company,
+      customer: customer.data.customer,
+      invoice: {
+        ...invoice,
+        number,
+        series,
+        status: 'authorized',
+        items,
+      },
+    })
+  } catch (err) {
+    const message =
+      err instanceof Error ? err.message : 'Falha ao montar XML da NF-e'
+    await client.execute({
+      sql: `UPDATE invoices SET
+              status = 'rejected',
+              rejection_reason = ?,
+              updated_at = unixepoch()
+            WHERE id = ? AND company_id = ?`,
+      args: [message, invoiceId, companyId],
+    })
+    await addEvent(client, invoiceId, 'rejected', message)
+    return getInvoice(client, companyId, invoiceId)
+  }
+
+  // Validação pré-envio alinhada ao XSD 4.00 (evita cStat 215/225 cegos)
+  const schema = validateNFeXmlSchema(xml)
+  if (!schema.ok) {
+    const message = formatSchemaIssues(schema.issues)
+    await client.execute({
+      sql: `UPDATE invoices SET
+              status = 'rejected',
+              rejection_reason = ?,
+              updated_at = unixepoch()
+            WHERE id = ? AND company_id = ?`,
+      args: [message, invoiceId, companyId],
+    })
+    await addEvent(client, invoiceId, 'schema_invalid', message)
+    return getInvoice(client, companyId, invoiceId)
+  }
 
   const hasCert = await hasActiveCertificate(client, companyId)
   const certMaterial = await getActiveCertificateMaterial(client, companyId)
@@ -406,15 +443,24 @@ export async function transmitInvoice(
   })
 
   if (!sefazResult.ok) {
+    // Se o adapter já formatou cStat, mantém; senão tenta enriquecer
+    const reason = sefazResult.rejectionReason.includes('[cStat')
+      ? sefazResult.rejectionReason
+      : sefazResult.rejectionReason.includes('cStat=')
+        ? formatSefazRejection(
+            sefazResult.rejectionReason.match(/cStat=(\d+)/)?.[1],
+            sefazResult.rejectionReason,
+          )
+        : sefazResult.rejectionReason
     await client.execute({
       sql: `UPDATE invoices SET
               status = 'rejected',
               rejection_reason = ?,
               updated_at = unixepoch()
             WHERE id = ? AND company_id = ?`,
-      args: [sefazResult.rejectionReason, invoiceId, companyId],
+      args: [reason, invoiceId, companyId],
     })
-    await addEvent(client, invoiceId, 'rejected', sefazResult.rejectionReason)
+    await addEvent(client, invoiceId, 'rejected', reason)
     return getInvoice(client, companyId, invoiceId)
   }
 

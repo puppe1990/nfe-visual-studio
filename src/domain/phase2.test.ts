@@ -33,6 +33,13 @@ describe("phase 2 — sefaz, A1, cancel, inutilize, mail", () => {
       document: VALID_CNPJ,
       taxRegime: "simples",
       sefazEnvironment: "homologation",
+      street: "Rua Teste",
+      number: "100",
+      district: "Centro",
+      city: "Sao Paulo",
+      state: "SP",
+      zip: "01001000",
+      stateRegistration: "123456789012",
     });
     if (!company.ok) throw new Error("company");
     companyId = company.data.company.id;
@@ -48,6 +55,12 @@ describe("phase 2 — sefaz, A1, cancel, inutilize, mail", () => {
       name: "Cliente",
       document: VALID_CPF,
       email: "cliente@example.com",
+      street: "Av Paulista",
+      number: "1000",
+      district: "Bela Vista",
+      city: "Sao Paulo",
+      state: "SP",
+      zip: "01310100",
     });
     if (!customer.ok) throw new Error("customer");
     const product = await products.createProduct(client, companyId, {
@@ -116,16 +129,33 @@ describe("phase 2 — sefaz, A1, cancel, inutilize, mail", () => {
     it("production without cert rejects authorize", async () => {
       await companies.updateCompany(client, companyId, {
         sefazEnvironment: "production",
+        street: "Rua Teste",
+        number: "100",
+        district: "Centro",
+        city: "Sao Paulo",
+        state: "SP",
+        zip: "01001000",
       });
       const customer = await customers.createCustomer(client, companyId, {
         name: "C",
         document: VALID_CPF,
+        street: "Av Paulista",
+        number: "1000",
+        district: "Bela Vista",
+        city: "Sao Paulo",
+        state: "SP",
+        zip: "01310100",
       });
       if (!customer.ok) throw new Error("c");
       const draft = await invoices.createInvoiceDraft(client, companyId, {
         customerId: customer.data.customer.id,
         items: [
-          { description: "X", quantity: 1, unitPriceCents: 1000 },
+          {
+            description: "X",
+            ncm: "73181500",
+            quantity: 1,
+            unitPriceCents: 1000,
+          },
         ],
       });
       if (!draft.ok) throw new Error("d");
@@ -245,7 +275,12 @@ describe("phase 2 — sefaz, A1, cancel, inutilize, mail", () => {
       const draft = await invoices.createInvoiceDraft(client, companyId, {
         customerId: customer.data.customer.id,
         items: [
-          { description: "X", quantity: 1, unitPriceCents: 500 },
+          {
+            description: "X",
+            ncm: "73181500",
+            quantity: 1,
+            unitPriceCents: 500,
+          },
         ],
       });
       if (!draft.ok) throw new Error("d");
