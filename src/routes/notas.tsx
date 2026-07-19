@@ -4,6 +4,7 @@ import {
   CheckCircle2,
   Clock,
   Download,
+  Mail,
   XCircle,
 } from "lucide-react";
 import { useState } from "react";
@@ -17,9 +18,11 @@ import {
 } from "../lib/invoice-labels";
 import { formatCents } from "../lib/money";
 import {
+  cancelInvoiceFn,
   exportInvoiceXmlFn,
   getWorkspaceFn,
   listInvoicesFn,
+  sendInvoiceEmailFn,
   transmitInvoiceFn,
 } from "../fns/nfe-functions";
 
@@ -97,6 +100,37 @@ function NotasPage() {
     a.download = `nfe-${invoiceId}.xml`;
     a.click();
     URL.revokeObjectURL(url);
+  }
+
+  async function onCancel(invoiceId: number) {
+    const justification = window.prompt(
+      "Justificativa do cancelamento (mín. 15 caracteres):",
+    );
+    if (justification == null) return;
+    setBusyId(invoiceId);
+    setError(null);
+    const result = await cancelInvoiceFn({
+      data: { invoiceId, justification },
+    });
+    setBusyId(null);
+    if (!result.ok) {
+      setError(result.error.message);
+      return;
+    }
+    await router.invalidate();
+  }
+
+  async function onEmail(invoiceId: number) {
+    setBusyId(invoiceId);
+    setError(null);
+    const result = await sendInvoiceEmailFn({ data: { invoiceId } });
+    setBusyId(null);
+    if (!result.ok) {
+      setError(result.error.message);
+      return;
+    }
+    window.alert("E-mail enfileirado/enviado (sender em memória no MVP).");
+    await router.invalidate();
   }
 
   return (
@@ -191,15 +225,34 @@ function NotasPage() {
                           </button>
                         )}
                         {n.status === "authorized" && (
-                          <button
-                            type="button"
-                            title="Baixar XML"
-                            disabled={busyId === n.id}
-                            onClick={() => onDownloadXml(n.id)}
-                            className="grid size-8 place-items-center rounded-md text-muted-foreground hover:bg-background hover:text-foreground"
-                          >
-                            <Download className="size-4" />
-                          </button>
+                          <>
+                            <button
+                              type="button"
+                              title="Baixar XML"
+                              disabled={busyId === n.id}
+                              onClick={() => onDownloadXml(n.id)}
+                              className="grid size-8 place-items-center rounded-md text-muted-foreground hover:bg-background hover:text-foreground"
+                            >
+                              <Download className="size-4" />
+                            </button>
+                            <button
+                              type="button"
+                              title="Enviar e-mail"
+                              disabled={busyId === n.id}
+                              onClick={() => onEmail(n.id)}
+                              className="grid size-8 place-items-center rounded-md text-muted-foreground hover:bg-background hover:text-foreground"
+                            >
+                              <Mail className="size-4" />
+                            </button>
+                            <button
+                              type="button"
+                              disabled={busyId === n.id}
+                              onClick={() => onCancel(n.id)}
+                              className="rounded-md border border-border px-2 py-1 text-xs text-destructive hover:bg-secondary disabled:opacity-50"
+                            >
+                              Cancelar
+                            </button>
+                          </>
                         )}
                       </div>
                     </td>

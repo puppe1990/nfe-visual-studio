@@ -75,10 +75,10 @@ export function AppShell({
                   className="size-2 rounded-full"
                   style={{ background: "var(--success)" }}
                 />
-                SEFAZ simulada
+                SEFAZ adapter
               </div>
               <div className="mt-1 text-muted-foreground">
-                Ambiente: Homologação (MVP)
+                Simulado · A1 em Configurações
               </div>
             </div>
           </div>

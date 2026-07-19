@@ -51,22 +51,28 @@ npm run dev
 npm run verify    # format + lint + typecheck + test + build
 ```
 
-## MVP vs Fase 2
+## Fases
 
-**MVP (implementado no domínio):**
+**Fase 1 (core):**
 - Multi-tenant por `companies`
 - CRUD clientes e produtos
-- Rascunho de NF-e + transmissão **simulada** (authorized/rejected)
+- Rascunho de NF-e + transmissão via adapter SEFAZ
 - Métricas do painel
-- Export XML simplificado (não assinado)
-- Import de produtos via XML de NF-e
-- Cálculo de impostos simplificado (stub por regime)
+- Export XML simplificado + import produtos via XML
+- Cálculo de impostos por regime (+ ST opcional)
 
-**Fase 2 (não fazer no MVP):**
-- SEFAZ real + certificado A1
-- Inutilização de numeração
-- E-mail DANFE
-- ST / reforma tributária completa
+**Fase 2 (fiscal / ops):**
+- Adapter `SefazClient` (`SimulatedSefazClient` default, `FakeSefazClient` em testes)
+- Certificado A1 (upload PFX base64 + senha cifrada MVP)
+- Produção exige A1; homologação não
+- Cancelamento de NF-e autorizada
+- Inutilização de faixa de numeração
+- Envio de e-mail com XML (`InMemoryMailSender` por padrão)
+- Protocolo SEFAZ + chave de acesso na nota
+
+**Ainda não:**
+- Webservice SEFAZ real por UF / assinatura XML com A1
+- SMTP real em produção
 - Cobrança mensal
 
 ## TDD
