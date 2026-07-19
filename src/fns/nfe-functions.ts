@@ -2,10 +2,12 @@ import { createServerFn } from "@tanstack/react-start";
 
 import { getMigratedDb } from "../db/client";
 import { ensureWorkspace } from "../domain/bootstrap";
+import * as certificates from "../domain/certificates";
 import * as companies from "../domain/companies";
 import * as customers from "../domain/customers";
 import * as invoices from "../domain/invoices";
 import type { DraftItemInput } from "../domain/invoices";
+import * as inutilizations from "../domain/inutilizations";
 import * as products from "../domain/products";
 import type { InvoiceStatus, SefazEnvironment, TaxRegime } from "../domain/types";
 import { importProductsFromXml } from "../domain/xml-import";
@@ -228,4 +230,91 @@ export const exportInvoiceXmlFn = createServerFn({ method: "GET" })
     const { db, company, error } = await workspace();
     if (error || !company) return error!;
     return invoices.exportInvoiceXml(db, company.id, data.invoiceId);
+  });
+
+export const cancelInvoiceFn = createServerFn({ method: "POST" })
+  .validator((data: { invoiceId: number; justification: string }) => data)
+  .handler(async ({ data }) => {
+    const { db, company, error } = await workspace();
+    if (error || !company) return error!;
+    return invoices.cancelInvoice(
+      db,
+      company.id,
+      data.invoiceId,
+      data.justification,
+    );
+  });
+
+export const sendInvoiceEmailFn = createServerFn({ method: "POST" })
+  .validator((data: { invoiceId: number; recipient?: string | null }) => data)
+  .handler(async ({ data }) => {
+    const { db, company, error } = await workspace();
+    if (error || !company) return error!;
+    return invoices.sendInvoiceEmail(
+      db,
+      company.id,
+      data.invoiceId,
+      data.recipient,
+    );
+  });
+
+// —— Certificates A1 ——
+
+export const getActiveCertificateFn = createServerFn({ method: "GET" }).handler(
+  async () => {
+    const { db, company, error } = await workspace();
+    if (error || !company) return error!;
+    return certificates.getActiveCertificate(db, company.id);
+  },
+);
+
+export const listCertificatesFn = createServerFn({ method: "GET" }).handler(
+  async () => {
+    const { db, company, error } = await workspace();
+    if (error || !company) return error!;
+    return certificates.listCertificates(db, company.id);
+  },
+);
+
+export const registerCertificateFn = createServerFn({ method: "POST" })
+  .validator(
+    (data: {
+      subject: string;
+      serialNumber?: string | null;
+      notBefore?: string | null;
+      notAfter?: string | null;
+      pfxBase64: string;
+      password: string;
+    }) => data,
+  )
+  .handler(async ({ data }) => {
+    const { db, company, error } = await workspace();
+    if (error || !company) return error!;
+    return certificates.registerCertificate(db, company.id, data);
+  });
+
+// —— Inutilizations ——
+
+export const listInutilizationsFn = createServerFn({ method: "GET" }).handler(
+  async () => {
+    const { db, company, error } = await workspace();
+    if (error || !company) return error!;
+    return inutilizations.listInutilizations(db, company.id);
+  },
+);
+
+export const inutilizeNumbersFn = createServerFn({ method: "POST" })
+  .validator(
+    (data: {
+      series?: number;
+      numberFrom: number;
+      numberTo: number;
+      year?: number;
+      justification: string;
+    }) => data,
+  )
+  .handler(async ({ data }) => {
+    const { db, company, error } = await workspace();
+    if (error || !company) return error!;
+    return inutilizations.inutilizeNumbers(db, company.id, data);
   });
