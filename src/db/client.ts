@@ -38,14 +38,41 @@ export function createDbClient(options?: {
   })
 }
 
+const SCHEMA_ALTERs = [
+  'ALTER TABLE invoices ADD COLUMN st_cents INTEGER NOT NULL DEFAULT 0',
+  'ALTER TABLE invoices ADD COLUMN sefaz_protocol TEXT',
+  'ALTER TABLE invoices ADD COLUMN access_key TEXT',
+  'ALTER TABLE invoices ADD COLUMN cancel_protocol TEXT',
+  'ALTER TABLE invoices ADD COLUMN cancel_justification TEXT',
+  'ALTER TABLE invoices ADD COLUMN canceled_at INTEGER',
+]
+
 export async function migrate(client: Client): Promise<void> {
-  const statements = schemaSql
+  // Strip line comments so semicolons inside comments do not break split
+  const withoutComments = schemaSql
+    .split('\n')
+    .map((line) => {
+      const idx = line.indexOf('--')
+      return idx >= 0 ? line.slice(0, idx) : line
+    })
+    .join('\n')
+
+  const statements = withoutComments
     .split(';')
     .map((s) => s.trim())
     .filter((s) => s.length > 0)
 
   for (const statement of statements) {
     await client.execute(statement)
+  }
+
+  // Idempotent upgrades for DBs created before phase 2 columns
+  for (const alter of SCHEMA_ALTERs) {
+    try {
+      await client.execute(alter)
+    } catch {
+      // column already exists
+    }
   }
 }
 

@@ -89,9 +89,15 @@ CREATE TABLE IF NOT EXISTS invoices (
   status TEXT NOT NULL DEFAULT 'draft',
   subtotal_cents INTEGER NOT NULL DEFAULT 0,
   tax_cents INTEGER NOT NULL DEFAULT 0,
+  st_cents INTEGER NOT NULL DEFAULT 0,
   total_cents INTEGER NOT NULL DEFAULT 0,
   xml_content TEXT,
   rejection_reason TEXT,
+  sefaz_protocol TEXT,
+  access_key TEXT,
+  cancel_protocol TEXT,
+  cancel_justification TEXT,
+  canceled_at INTEGER,
   issued_at INTEGER,
   created_at INTEGER NOT NULL DEFAULT (unixepoch()),
   updated_at INTEGER NOT NULL DEFAULT (unixepoch())
@@ -114,5 +120,46 @@ CREATE TABLE IF NOT EXISTS invoice_events (
   invoice_id INTEGER NOT NULL REFERENCES invoices(id) ON DELETE CASCADE,
   event_type TEXT NOT NULL,
   message TEXT,
+  created_at INTEGER NOT NULL DEFAULT (unixepoch())
+);
+
+-- Certificado digital A1 (PFX em base64, senha cifrada de forma simples no MVP)
+CREATE TABLE IF NOT EXISTS company_certificates (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  company_id INTEGER NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+  subject TEXT NOT NULL,
+  serial_number TEXT,
+  not_before TEXT,
+  not_after TEXT,
+  pfx_base64 TEXT NOT NULL,
+  password_cipher TEXT NOT NULL,
+  active INTEGER NOT NULL DEFAULT 1,
+  created_at INTEGER NOT NULL DEFAULT (unixepoch()),
+  updated_at INTEGER NOT NULL DEFAULT (unixepoch())
+);
+
+-- Inutilização de numeração SEFAZ
+CREATE TABLE IF NOT EXISTS inutilizations (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  company_id INTEGER NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+  series INTEGER NOT NULL,
+  number_from INTEGER NOT NULL,
+  number_to INTEGER NOT NULL,
+  year INTEGER NOT NULL,
+  justification TEXT NOT NULL,
+  protocol TEXT,
+  status TEXT NOT NULL DEFAULT 'authorized',
+  xml_content TEXT,
+  created_at INTEGER NOT NULL DEFAULT (unixepoch())
+);
+
+-- Log de e-mails enviados (DANFE/XML)
+CREATE TABLE IF NOT EXISTS invoice_mail_log (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  invoice_id INTEGER NOT NULL REFERENCES invoices(id) ON DELETE CASCADE,
+  recipient TEXT NOT NULL,
+  subject TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'sent',
+  error_message TEXT,
   created_at INTEGER NOT NULL DEFAULT (unixepoch())
 );
