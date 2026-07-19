@@ -70,8 +70,23 @@ npm run verify    # format + lint + typecheck + test + build
 - Envio de e-mail com XML (`InMemoryMailSender` por padrão)
 - Protocolo SEFAZ + chave de acesso na nota
 
+**SEFAZ direto (sem API comercial):**
+- `SEFAZ_MODE=real` ativa `RealSefazClient`
+- Assina XML com A1 (`node-forge` + `xml-crypto`)
+- mTLS SOAP para NFeAutorizacao4 / RetAutorizacao / RecepcaoEvento / Inutilizacao
+- Endpoints por UF em `sefaz-endpoints.ts` (SP + SVRS)
+- `SEFAZ_UF=SP` (default)
+
+```bash
+SEFAZ_MODE=real SEFAZ_UF=SP npm run dev
+```
+
+Cadastre o A1 em **Configurações** antes de transmitir em modo real.
+Homologação SEFAZ ainda exige CNPJ credenciado + XML layout oficial completo
+(o builder atual gera XML simplificado — expandir layout para produção fiscal).
+
 **Ainda não:**
-- Webservice SEFAZ real por UF / assinatura XML com A1
+- Layout NF-e 4.00 100% completo (todos os grupos fiscais)
 - SMTP real em produção
 - Cobrança mensal
 

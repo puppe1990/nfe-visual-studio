@@ -1,6 +1,9 @@
 import type { Client } from '@libsql/client'
 
-import { hasActiveCertificate } from './certificates'
+import {
+  getActiveCertificateMaterial,
+  hasActiveCertificate,
+} from './certificates'
 import { companyExists, getCompany } from './companies'
 import { getCustomer } from './customers'
 import type { MailSender } from './mail'
@@ -387,6 +390,10 @@ export async function transmitInvoice(
   })
 
   const hasCert = await hasActiveCertificate(client, companyId)
+  const certMaterial = await getActiveCertificateMaterial(client, companyId)
+  const certificate =
+    certMaterial.ok && certMaterial.data ? certMaterial.data : null
+
   const sefazResult = await sefaz.authorize({
     companyDocument: company.data.company.document,
     series,
@@ -394,6 +401,8 @@ export async function transmitInvoice(
     environment: company.data.company.sefazEnvironment,
     xml,
     hasCertificate: hasCert,
+    certificate,
+    uf: company.data.company.state ?? 'SP',
   })
 
   if (!sefazResult.ok) {
@@ -486,12 +495,18 @@ export async function cancelInvoice(
   if (!company.ok) return company
 
   const hasCert = await hasActiveCertificate(client, companyId)
+  const certMaterial = await getActiveCertificateMaterial(client, companyId)
+  const certificate =
+    certMaterial.ok && certMaterial.data ? certMaterial.data : null
+
   const sefazResult = await sefaz.cancel({
     accessKey: invoice.accessKey ?? '',
     protocol: invoice.sefazProtocol ?? '',
     justification: just,
     environment: company.data.company.sefazEnvironment,
     hasCertificate: hasCert,
+    certificate,
+    uf: company.data.company.state ?? 'SP',
   })
 
   if (!sefazResult.ok) {

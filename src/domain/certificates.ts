@@ -172,6 +172,44 @@ export async function hasActiveCertificate(
   return result.ok && result.data.certificate != null;
 }
 
+/**
+ * Material secreto do A1 ativo (PFX + senha) para SEFAZ direto.
+ * Não expor em loaders de UI.
+ */
+export async function getActiveCertificateMaterial(
+  client: Client,
+  companyId: number,
+): Promise<
+  ServiceResult<{ pfxBase64: string; password: string } | null>
+> {
+  if (!(await companyExists(client, companyId))) {
+    return {
+      ok: false,
+      error: { code: "NOT_FOUND", message: "Empresa não encontrada" },
+    };
+  }
+
+  const result = await client.execute({
+    sql: `SELECT pfx_base64, password_cipher FROM company_certificates
+          WHERE company_id = ? AND active = 1
+          ORDER BY id DESC LIMIT 1`,
+    args: [companyId],
+  });
+
+  if (result.rows.length === 0) {
+    return { ok: true, data: null };
+  }
+
+  const row = result.rows[0] as unknown as Record<string, unknown>;
+  return {
+    ok: true,
+    data: {
+      pfxBase64: String(row.pfx_base64),
+      password: decryptPassword(String(row.password_cipher)),
+    },
+  };
+}
+
 export async function listCertificates(
   client: Client,
   companyId: number,

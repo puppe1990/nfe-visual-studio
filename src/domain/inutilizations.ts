@@ -1,6 +1,9 @@
 import type { Client } from "@libsql/client";
 
-import { hasActiveCertificate } from "./certificates";
+import {
+  getActiveCertificateMaterial,
+  hasActiveCertificate,
+} from "./certificates";
 import { companyExists, getCompany } from "./companies";
 import type { SefazClient } from "./sefaz";
 import { getSefazClient } from "./sefaz";
@@ -125,6 +128,10 @@ export async function inutilizeNumbers(
   }
 
   const hasCert = await hasActiveCertificate(client, companyId);
+  const certMaterial = await getActiveCertificateMaterial(client, companyId);
+  const certificate =
+    certMaterial.ok && certMaterial.data ? certMaterial.data : null;
+
   const sefazResult = await sefaz.inutilize({
     companyDocument: company.data.company.document,
     series,
@@ -134,6 +141,8 @@ export async function inutilizeNumbers(
     justification,
     environment: company.data.company.sefazEnvironment,
     hasCertificate: hasCert,
+    certificate,
+    uf: company.data.company.state ?? "SP",
   });
 
   if (!sefazResult.ok) {

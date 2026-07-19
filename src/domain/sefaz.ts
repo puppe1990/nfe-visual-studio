@@ -1,5 +1,11 @@
 import type { SefazEnvironment } from "./types";
 
+/** Material do A1 para mTLS + assinatura (SEFAZ direto). */
+export type CertificateMaterial = {
+  pfxBase64: string;
+  password: string;
+};
+
 export type SefazAuthorizeRequest = {
   companyDocument: string;
   series: number;
@@ -7,6 +13,9 @@ export type SefazAuthorizeRequest = {
   environment: SefazEnvironment;
   xml: string;
   hasCertificate: boolean;
+  /** Obrigatório no RealSefazClient */
+  certificate?: CertificateMaterial | null;
+  uf?: string;
 };
 
 export type SefazAuthorizeResult =
@@ -24,6 +33,8 @@ export type SefazCancelRequest = {
   justification: string;
   environment: SefazEnvironment;
   hasCertificate: boolean;
+  certificate?: CertificateMaterial | null;
+  uf?: string;
 };
 
 export type SefazCancelResult =
@@ -39,6 +50,8 @@ export type SefazInutilizeRequest = {
   justification: string;
   environment: SefazEnvironment;
   hasCertificate: boolean;
+  certificate?: CertificateMaterial | null;
+  uf?: string;
 };
 
 export type SefazInutilizeResult =
@@ -46,8 +59,10 @@ export type SefazInutilizeResult =
   | { ok: false; rejectionReason: string };
 
 /**
- * Adapter SEFAZ — produção real exige WS da SEFAZ + A1 assinado.
- * Implementações: SimulatedSefazClient (default), FakeSefazClient (testes).
+ * Adapter SEFAZ.
+ * - SimulatedSefazClient: default dev/test sem rede
+ * - RealSefazClient: SEFAZ direta (SOAP + A1), sem provedor intermediário
+ * - FakeSefazClient: respostas forçadas em testes
  */
 export interface SefazClient {
   authorize(req: SefazAuthorizeRequest): Promise<SefazAuthorizeResult>;
@@ -196,9 +211,36 @@ export class FakeSefazClient implements SefazClient {
   }
 }
 
-let defaultClient: SefazClient = new SimulatedSefazClient();
+let defaultClient: SefazClient | null = null;
+
+/**
+ * SEFAZ_MODE=real → RealSefazClient (direto).
+ * default / simulated → SimulatedSefazClient.
+ */
+export function createDefaultSefazClient(): SefazClient {
+  const mode = (process.env.SEFAZ_MODE ?? "simulated").toLowerCase();
+  if (mode === "real") {
+    // Imported lazily so unit tests without SEFAZ_MODE stay light
+    return createRealSefazClient({
+      uf: process.env.SEFAZ_UF ?? "SP",
+    });
+  }
+  return new SimulatedSefazClient();
+}
+
+function createRealSefazClient(options: { uf: string }): SefazClient {
+  // dynamic import would be async; sync require for env bootstrap only
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const mod = require("./sefaz-real") as {
+    RealSefazClient: new (o?: { uf?: string }) => SefazClient;
+  };
+  return new mod.RealSefazClient(options);
+}
 
 export function getSefazClient(): SefazClient {
+  if (!defaultClient) {
+    defaultClient = createDefaultSefazClient();
+  }
   return defaultClient;
 }
 
