@@ -1,10 +1,105 @@
-<!-- LOVABLE:BEGIN -->
-> [!IMPORTANT]
-> This project is connected to [Lovable](https://lovable.dev). Avoid rewriting
-> published git history — force pushing, or rebasing/amending/squashing commits
-> that are already pushed — as it rewrites history on Lovable's side and the
-> user will likely lose their project history.
->
-> Commits you push to the connected branch sync back to Lovable and show up in
-> the editor, so keep the branch in a working state.
-<!-- LOVABLE:END -->
+# AGENTS.md — NFeFácil
+
+Emissor de NF-e online (MVP). Visual em TanStack Start; domínio em Turso/libSQL com TDD.
+
+## Stack
+
+| Camada | Tecnologia |
+|--------|------------|
+| UI | TanStack Start, React 19, Tailwind |
+| DB | Turso / libSQL (`@libsql/client`) |
+| Domínio | `src/domain/*` + `ServiceResult` |
+| Testes | Vitest + DB file temp |
+
+## Estrutura
+
+```
+src/
+  db/           # schema.sql, client (createDbClient, migrate)
+  domain/       # companies, customers, products, invoices, tax, xml-*, bootstrap
+  fns/          # createServerFn (nfe-functions.ts) — não usar pasta server/ (import protection)
+  routes/       # / painel, /emitir, /notas, /clientes, /produtos, /configuracoes
+  components/   # AppShell
+```
+
+## Rotas (UI ligada ao domínio)
+
+| Rota | Função |
+|------|--------|
+| `/` | Painel com métricas reais |
+| `/emitir` | Rascunho + transmitir (simulado) |
+| `/notas` | Lista, filtros, XML, retransmitir |
+| `/clientes` | CRUD destinatários |
+| `/produtos` | CRUD + import XML |
+| `/configuracoes` | Emitente + série/numeração |
+
+MVP sem login: `ensureWorkspace()` cria empresa demo na 1ª execução.
+
+## Env
+
+```env
+TURSO_DATABASE_URL=file:local-nfe.db
+TURSO_AUTH_TOKEN=
+```
+
+## Comandos
+
+```bash
+npm install
+npm test          # domínio TDD
+npm run dev
+npm run verify    # format + lint + typecheck + test + build
+```
+
+## Fases
+
+**Fase 1 (core):**
+- Multi-tenant por `companies`
+- CRUD clientes e produtos
+- Rascunho de NF-e + transmissão via adapter SEFAZ
+- Métricas do painel
+- Export XML simplificado + import produtos via XML
+- Cálculo de impostos por regime (+ ST opcional)
+
+**Fase 2 (fiscal / ops):**
+- Adapter `SefazClient` (`SimulatedSefazClient` default, `FakeSefazClient` em testes)
+- Certificado A1 (upload PFX base64 + senha cifrada MVP)
+- Produção exige A1; homologação não
+- Cancelamento de NF-e autorizada
+- Inutilização de faixa de numeração
+- Envio de e-mail com XML (`InMemoryMailSender` por padrão)
+- Protocolo SEFAZ + chave de acesso na nota
+
+**SEFAZ direto (sem API comercial):**
+- `SEFAZ_MODE=real` ativa `RealSefazClient`
+- Assina XML com A1 (`node-forge` + `xml-crypto`)
+- mTLS SOAP para NFeAutorizacao4 / RetAutorizacao / RecepcaoEvento / Inutilizacao
+- Endpoints por UF em `sefaz-endpoints.ts` (SP + SVRS)
+- `SEFAZ_UF=SP` (default)
+
+```bash
+SEFAZ_MODE=real SEFAZ_UF=SP npm run dev
+```
+
+Cadastre o A1 em **Configurações** antes de transmitir em modo real.
+Homologação SEFAZ exige CNPJ credenciado na UF.
+
+`buildInvoiceXml` gera layout NF-e 4.00 com grupos obrigatórios:
+ide, emit/enderEmit, dest/enderDest, det/prod/imposto (ICMS SN ou ICMS00),
+total/ICMSTot, transp, pag, infAdic + chave de acesso 44 dígitos.
+Em homologação força o xNome do dest exigido pela SEFAZ.
+
+**Validação pré-envio (layout 4.00):**
+- `validateNFeXmlSchema` checa campos obrigatórios/formatos (equiv. XSD prático)
+- Rejeições SEFAZ (`cStat`) mapeadas em `sefaz-cstat.ts` com “o que fazer”
+- Rodada automaticamente em `transmitInvoice` e no `RealSefazClient`
+
+**Ainda não:**
+- Pacote XSD oficial PL multi-arquivo embutido
+- Todos os CSTs/CSOSN e regras de ICMS interestadual/ST completas
+- SMTP real em produção
+- Cobrança mensal
+
+## TDD
+
+Testes em `src/domain/*.test.ts`. Sempre usar `createDbClient({ url: 'file:...' })` + `migrate()` em temp dir — não mockar o SQL.
