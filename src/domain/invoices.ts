@@ -1,7 +1,12 @@
 import type { Client } from '@libsql/client'
 
+import { hasActiveCertificate } from './certificates'
 import { companyExists, getCompany } from './companies'
 import { getCustomer } from './customers'
+import type { MailSender } from './mail'
+import { getMailSender } from './mail'
+import type { SefazClient } from './sefaz'
+import { getSefazClient } from './sefaz'
 import { calculateTaxCents, lineTotalCents } from './tax'
 import type {
   DashboardMetrics,
@@ -40,10 +45,22 @@ function mapInvoice(row: Record<string, unknown>): Invoice {
     status: String(row.status) as InvoiceStatus,
     subtotalCents: Number(row.subtotal_cents),
     taxCents: Number(row.tax_cents),
+    stCents: Number(row.st_cents ?? 0),
     totalCents: Number(row.total_cents),
     xmlContent: row.xml_content == null ? null : String(row.xml_content),
     rejectionReason:
       row.rejection_reason == null ? null : String(row.rejection_reason),
+    sefazProtocol:
+      row.sefaz_protocol == null ? null : String(row.sefaz_protocol),
+    accessKey: row.access_key == null ? null : String(row.access_key),
+    cancelProtocol:
+      row.cancel_protocol == null ? null : String(row.cancel_protocol),
+    cancelJustification:
+      row.cancel_justification == null
+        ? null
+        : String(row.cancel_justification),
+    canceledAt:
+      row.canceled_at == null ? null : Number(row.canceled_at) * 1000,
     issuedAt: row.issued_at == null ? null : Number(row.issued_at) * 1000,
     createdAt: Number(row.created_at) * 1000,
     updatedAt: Number(row.updated_at) * 1000,
@@ -73,17 +90,17 @@ async function recomputeTotals(
 
   const items = await loadItems(client, invoiceId)
   const subtotalCents = items.reduce((s, i) => s + i.totalCents, 0)
-  const { taxCents, totalCents } = calculateTaxCents({
+  const { taxCents, stCents, totalCents } = calculateTaxCents({
     subtotalCents,
     taxRegime: company.data.company.taxRegime,
   })
 
   await client.execute({
     sql: `UPDATE invoices SET
-            subtotal_cents = ?, tax_cents = ?, total_cents = ?,
+            subtotal_cents = ?, tax_cents = ?, st_cents = ?, total_cents = ?,
             updated_at = unixepoch()
           WHERE id = ? AND company_id = ?`,
-    args: [subtotalCents, taxCents, totalCents, invoiceId, companyId],
+    args: [subtotalCents, taxCents, stCents, totalCents, invoiceId, companyId],
   })
 }
 
@@ -299,13 +316,14 @@ export async function listInvoices(
 }
 
 /**
- * Transmissão simulada (MVP): valida e marca authorized ou rejected.
- * SEFAZ real entra na Fase 2.
+ * Transmissão via adapter SEFAZ (simulado por padrão).
+ * Produção exige certificado A1 ativo.
  */
 export async function transmitInvoice(
   client: Client,
   companyId: number,
   invoiceId: number,
+  sefaz: SefazClient = getSefazClient(),
 ): Promise<ServiceResult<{ invoice: Invoice }>> {
   const current = await getInvoice(client, companyId, invoiceId)
   if (!current.ok) return current
@@ -368,17 +386,50 @@ export async function transmitInvoice(
     },
   })
 
+  const hasCert = await hasActiveCertificate(client, companyId)
+  const sefazResult = await sefaz.authorize({
+    companyDocument: company.data.company.document,
+    series,
+    number,
+    environment: company.data.company.sefazEnvironment,
+    xml,
+    hasCertificate: hasCert,
+  })
+
+  if (!sefazResult.ok) {
+    await client.execute({
+      sql: `UPDATE invoices SET
+              status = 'rejected',
+              rejection_reason = ?,
+              updated_at = unixepoch()
+            WHERE id = ? AND company_id = ?`,
+      args: [sefazResult.rejectionReason, invoiceId, companyId],
+    })
+    await addEvent(client, invoiceId, 'rejected', sefazResult.rejectionReason)
+    return getInvoice(client, companyId, invoiceId)
+  }
+
   await client.execute({
     sql: `UPDATE invoices SET
             status = 'authorized',
             number = ?,
             series = ?,
             xml_content = ?,
+            sefaz_protocol = ?,
+            access_key = ?,
             rejection_reason = NULL,
             issued_at = unixepoch(),
             updated_at = unixepoch()
           WHERE id = ? AND company_id = ?`,
-    args: [number, series, xml, invoiceId, companyId],
+    args: [
+      number,
+      series,
+      sefazResult.authorizedXml,
+      sefazResult.protocol,
+      sefazResult.accessKey,
+      invoiceId,
+      companyId,
+    ],
   })
 
   await client.execute({
@@ -393,10 +444,156 @@ export async function transmitInvoice(
     client,
     invoiceId,
     'authorized',
-    `NF-e ${series}/${number} autorizada (simulado)`,
+    `NF-e ${series}/${number} autorizada · prot ${sefazResult.protocol}`,
   )
 
   return getInvoice(client, companyId, invoiceId)
+}
+
+export async function cancelInvoice(
+  client: Client,
+  companyId: number,
+  invoiceId: number,
+  justification: string,
+  sefaz: SefazClient = getSefazClient(),
+): Promise<ServiceResult<{ invoice: Invoice }>> {
+  const current = await getInvoice(client, companyId, invoiceId)
+  if (!current.ok) return current
+
+  const invoice = current.data.invoice
+  if (invoice.status !== 'authorized') {
+    return {
+      ok: false,
+      error: {
+        code: 'VALIDATION',
+        message: 'Somente notas autorizadas podem ser canceladas',
+      },
+    }
+  }
+
+  const just = justification.trim()
+  if (just.length < 15) {
+    return {
+      ok: false,
+      error: {
+        code: 'VALIDATION',
+        message: 'Justificativa deve ter ao menos 15 caracteres',
+      },
+    }
+  }
+
+  const company = await getCompany(client, companyId)
+  if (!company.ok) return company
+
+  const hasCert = await hasActiveCertificate(client, companyId)
+  const sefazResult = await sefaz.cancel({
+    accessKey: invoice.accessKey ?? '',
+    protocol: invoice.sefazProtocol ?? '',
+    justification: just,
+    environment: company.data.company.sefazEnvironment,
+    hasCertificate: hasCert,
+  })
+
+  if (!sefazResult.ok) {
+    return {
+      ok: false,
+      error: { code: 'SEFAZ', message: sefazResult.rejectionReason },
+    }
+  }
+
+  await client.execute({
+    sql: `UPDATE invoices SET
+            status = 'canceled',
+            cancel_protocol = ?,
+            cancel_justification = ?,
+            canceled_at = unixepoch(),
+            updated_at = unixepoch()
+          WHERE id = ? AND company_id = ?`,
+    args: [sefazResult.protocol, just, invoiceId, companyId],
+  })
+  await addEvent(
+    client,
+    invoiceId,
+    'canceled',
+    `Cancelada · prot ${sefazResult.protocol}`,
+  )
+
+  return getInvoice(client, companyId, invoiceId)
+}
+
+export async function sendInvoiceEmail(
+  client: Client,
+  companyId: number,
+  invoiceId: number,
+  recipient?: string | null,
+  mail: MailSender = getMailSender(),
+): Promise<ServiceResult<{ messageId: string }>> {
+  const current = await getInvoice(client, companyId, invoiceId)
+  if (!current.ok) return current
+
+  const invoice = current.data.invoice
+  if (invoice.status !== 'authorized' && invoice.status !== 'canceled') {
+    return {
+      ok: false,
+      error: {
+        code: 'VALIDATION',
+        message: 'Envie e-mail apenas para notas autorizadas ou canceladas',
+      },
+    }
+  }
+
+  const customer = await getCustomer(client, companyId, invoice.customerId)
+  if (!customer.ok) return customer
+
+  const to = (recipient?.trim() || customer.data.customer.email || '').trim()
+  if (!to) {
+    return {
+      ok: false,
+      error: {
+        code: 'VALIDATION',
+        message: 'Destinatário sem e-mail cadastrado',
+      },
+    }
+  }
+
+  const subject = `NF-e ${invoice.series}/${invoice.number ?? '—'} — ${customer.data.customer.name}`
+  const body = `Segue XML da NF-e ${invoice.series}/${invoice.number ?? ''}.\nProtocolo: ${invoice.sefazProtocol ?? '—'}\nChave: ${invoice.accessKey ?? '—'}`
+
+  const result = await mail.send({
+    to,
+    subject,
+    body,
+    attachments: invoice.xmlContent
+      ? [
+          {
+            filename: `nfe-${invoice.id}.xml`,
+            content: invoice.xmlContent,
+            contentType: 'application/xml',
+          },
+        ]
+      : [],
+  })
+
+  if (!result.ok) {
+    await client.execute({
+      sql: `INSERT INTO invoice_mail_log (invoice_id, recipient, subject, status, error_message)
+            VALUES (?, ?, ?, 'failed', ?)`,
+      args: [invoiceId, to, subject, result.error],
+    })
+    return {
+      ok: false,
+      error: { code: 'MAIL', message: result.error },
+    }
+  }
+
+  await client.execute({
+    sql: `INSERT INTO invoice_mail_log (invoice_id, recipient, subject, status)
+          VALUES (?, ?, ?, 'sent')`,
+    args: [invoiceId, to, subject],
+  })
+  await addEvent(client, invoiceId, 'email_sent', `E-mail enviado para ${to}`)
+
+  return { ok: true, data: { messageId: result.messageId } }
 }
 
 export async function getDashboardMetrics(

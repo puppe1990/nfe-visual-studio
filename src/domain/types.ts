@@ -93,13 +93,33 @@ export type Invoice = {
   status: InvoiceStatus
   subtotalCents: number
   taxCents: number
+  stCents: number
   totalCents: number
   xmlContent: string | null
   rejectionReason: string | null
+  sefazProtocol: string | null
+  accessKey: string | null
+  cancelProtocol: string | null
+  cancelJustification: string | null
+  canceledAt: number | null
   issuedAt: number | null
   items?: InvoiceItem[]
   createdAt: number
   updatedAt: number
+}
+
+export type Inutilization = {
+  id: number
+  companyId: number
+  series: number
+  numberFrom: number
+  numberTo: number
+  year: number
+  justification: string
+  protocol: string | null
+  status: string
+  xmlContent: string | null
+  createdAt: number
 }
 
 export type DashboardMetrics = {
