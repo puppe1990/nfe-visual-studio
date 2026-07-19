@@ -12,6 +12,7 @@ describe('tax', () => {
   it('applies simples regime rate', () => {
     const r = calculateTaxCents({ subtotalCents: 10_000, taxRegime: 'simples' })
     expect(r.taxCents).toBe(600)
+    expect(r.stCents).toBe(0)
     expect(r.totalCents).toBe(10_600)
   })
 
@@ -22,5 +23,16 @@ describe('tax', () => {
     })
     expect(r.taxCents).toBe(1_200)
     expect(r.totalCents).toBe(11_200)
+  })
+
+  it('adds ST when requested', () => {
+    const r = calculateTaxCents({
+      subtotalCents: 10_000,
+      taxRegime: 'simples',
+      hasSt: true,
+    })
+    expect(r.taxCents).toBe(600)
+    expect(r.stCents).toBe(1_800)
+    expect(r.totalCents).toBe(12_400)
   })
 })
