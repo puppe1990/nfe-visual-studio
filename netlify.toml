@@ -5,3 +5,10 @@
 [build.environment]
   NODE_VERSION = "22"
 
+[[redirects]]
+  from = "/*"
+  to = "https://nfe.gestaobem.com/:splat"
+  status = 301
+  force = true
+  conditions = {Host = ["nfefacil.netlify.app"]}
+
