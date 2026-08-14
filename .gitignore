@@ -25,6 +25,8 @@ dist-ssr
 .wrangler/
 .dev.vars
 .netlify
+.superpowers/
+.worktrees/
 
 # Editor directories and files
 .vscode/*
