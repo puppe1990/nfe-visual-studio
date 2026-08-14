@@ -1,6 +1,10 @@
 import type { Client } from '@libsql/client'
 
 import { companyExists } from './companies'
+import {
+  buildChartSeries,
+  chooseChartBucket,
+} from './dashboard-chart'
 import { mapInvoice } from './invoice-row'
 import { dayEndUnix, dayStartUnix } from './iso-day-unix'
 import type {
@@ -147,9 +151,6 @@ export async function getDashboardMetrics(
   const pending = await countStatus(['draft', 'pending'])
   const rejected = await countStatus('rejected')
 
-  const chartStart = filter?.dateFrom
-    ? dayStartUnix(filter.dateFrom)
-    : Math.floor(Date.now() / 1000) - 6 * 86400
   const chartUnions: string[] = []
   const chartArgs: Array<string | number> = []
   if (includeNfe) {
@@ -157,10 +158,8 @@ export async function getDashboardMetrics(
       status: 'authorized',
       requireIssued: true,
     })
-    chartUnions.push(
-      `SELECT issued_at FROM invoices WHERE ${scope.sql} AND issued_at >= ?`,
-    )
-    chartArgs.push(...scope.args, chartStart)
+    chartUnions.push(`SELECT issued_at FROM invoices WHERE ${scope.sql}`)
+    chartArgs.push(...scope.args)
   }
   if (includeNfse) {
     const scope = dashboardScopeSql('service_invoices', companyId, filter, {
@@ -168,43 +167,38 @@ export async function getDashboardMetrics(
       requireIssued: true,
     })
     chartUnions.push(
-      `SELECT issued_at FROM service_invoices WHERE ${scope.sql} AND issued_at >= ?`,
+      `SELECT issued_at FROM service_invoices WHERE ${scope.sql}`,
     )
-    chartArgs.push(...scope.args, chartStart)
+    chartArgs.push(...scope.args)
   }
-  const last7 = chartUnions.length
+  const issuedRows = chartUnions.length
     ? await client.execute({
-        sql: `SELECT date(issued_at, 'unixepoch', 'localtime') AS day, COUNT(*) AS c
-              FROM (${chartUnions.join(' UNION ALL ')})
-              GROUP BY day
-              ORDER BY day ASC`,
+        sql: `SELECT issued_at FROM (${chartUnions.join(' UNION ALL ')})`,
         args: chartArgs,
       })
     : { rows: [] }
+  const issuedAtSeconds = issuedRows.rows.map((row) =>
+    Number((row as unknown as Record<string, unknown>).issued_at),
+  )
 
-  const dayMap = new Map<string, number>()
-  for (const row of last7.rows) {
-    const r = row as unknown as Record<string, unknown>
-    dayMap.set(String(r.day), Number(r.c))
-  }
-  const last7Days: { day: string; count: number }[] = []
-  const chartDays = filter?.dateFrom && filter.dateTo
-    ? Math.min(
-        62,
-        Math.round(
-          (dayEndUnix(filter.dateTo) - dayStartUnix(filter.dateFrom)) / 86400,
-        ) + 1,
-      )
-    : 7
-  for (let i = chartDays - 1; i >= 0; i--) {
-    const d = filter?.dateTo
-      ? new Date(dayStartUnix(filter.dateTo) * 1000)
-      : new Date()
-    d.setHours(0, 0, 0, 0)
-    d.setDate(d.getDate() - i)
-    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-    last7Days.push({ day: key, count: dayMap.get(key) ?? 0 })
-  }
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const toUnix = filter?.dateTo
+    ? dayStartUnix(filter.dateTo)
+    : Math.floor(today.getTime() / 1000)
+  const fromUnix = filter?.dateFrom
+    ? dayStartUnix(filter.dateFrom)
+    : issuedAtSeconds.length > 0
+      ? Math.min(
+          ...issuedAtSeconds.map((stamp) => {
+            const d = new Date(stamp * 1000)
+            d.setHours(0, 0, 0, 0)
+            return Math.floor(d.getTime() / 1000)
+          }),
+        )
+      : toUnix - 6 * 86400
+  const chartSeries = buildChartSeries(issuedAtSeconds, fromUnix, toUnix)
+  const chartBucket = chooseChartBucket(fromUnix, toUnix)
 
   const requested = normalizeDashboardPage(filter)
   const recentTotal = await countListedNotes(
@@ -304,7 +298,8 @@ export async function getDashboardMetrics(
       revenueCents: authorized.revenue,
       pendingCount: pending.c,
       rejectedCount: rejected.c,
-      last7Days,
+      chartSeries,
+      chartBucket,
       recentInvoices,
       recentItems: slicedItems,
       recentTotal,

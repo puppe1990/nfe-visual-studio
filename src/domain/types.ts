@@ -209,12 +209,15 @@ export type DashboardFilter = {
   pageSize?: number
 }
 
+export type DashboardChartBucket = 'day' | 'week' | 'month'
+
 export type DashboardMetrics = {
   authorizedCount: number
   revenueCents: number
   pendingCount: number
   rejectedCount: number
-  last7Days: { day: string; count: number }[]
+  chartSeries: { day: string; count: number }[]
+  chartBucket: DashboardChartBucket
   recentInvoices: Invoice[]
   recentItems: DashboardRecentItem[]
   recentTotal: number
