@@ -1,6 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 
+import { PasswordInput } from "../components/PasswordInput";
 import { registerFn } from "../fns/auth-functions";
 
 export const Route = createFileRoute("/cadastro")({
@@ -74,11 +75,9 @@ function RegisterPage() {
         </label>
         <label className="block text-sm">
           <span className="text-muted-foreground">Senha</span>
-          <input
-            type="password"
-            className="mt-1.5 h-10 w-full rounded-md border border-border bg-background px-3"
+          <PasswordInput
             value={password}
-            onChange={(e) => setPassword(e.target.value)}
+            onChange={setPassword}
             minLength={8}
             required
           />
