@@ -10,16 +10,24 @@ import { LandingProducts } from "../components/landing/LandingProducts";
 import { LandingProofStrip } from "../components/landing/LandingProofStrip";
 import { getCurrentUserFn } from "../fns/auth-functions";
 import { landingSignedIn } from "../lib/landing-session";
+import {
+  OG_IMAGE_URL,
+  SITE_DESCRIPTION,
+  SITE_TITLE,
+  SITE_URL,
+} from "../lib/site";
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "NFeFácil — NFS-e e NF-e sem intermediário" },
-      {
-        name: "description",
-        content:
-          "Emita NFS-e da Prefeitura de São Paulo e NF-e 55 na SEFAZ com o seu certificado A1. Sem provedor no meio.",
-      },
+      { title: SITE_TITLE },
+      { name: "description", content: SITE_DESCRIPTION },
+      { property: "og:url", content: SITE_URL },
+      { property: "og:title", content: SITE_TITLE },
+      { property: "og:description", content: SITE_DESCRIPTION },
+      { property: "og:image", content: OG_IMAGE_URL },
+      { name: "twitter:card", content: "summary_large_image" },
+      { name: "twitter:image", content: OG_IMAGE_URL },
     ],
     links: [
       { rel: "preconnect", href: "https://fonts.googleapis.com" },

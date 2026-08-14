@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,560;9..144,650&family=Figtree:wght@500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+      html, body { width: 1200px; height: 630px; overflow: hidden; }
+      body {
+        --ink: #1c1914;
+        --mute: #6b6256;
+        --rule: #d8cfc0;
+        --paper: #f4efe4;
+        --sheet: #fbf7ef;
+        font-family: Figtree, ui-sans-serif, system-ui, sans-serif;
+        color: var(--ink);
+        background: var(--paper);
+        background-image:
+          linear-gradient(180deg, rgba(232, 214, 176, 0.45), transparent 70%),
+          repeating-linear-gradient(
+            0deg,
+            transparent,
+            transparent 27px,
+            rgba(28, 25, 20, 0.05) 28px
+          );
+      }
+      .grain {
+        position: absolute;
+        inset: 0;
+        opacity: 0.18;
+        background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+      }
+      .frame {
+        position: relative;
+        z-index: 1;
+        display: grid;
+        grid-template-columns: 1.15fr 0.85fr;
+        gap: 48px;
+        height: 100%;
+        padding: 56px 64px 52px;
+      }
+      .mark {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        margin-bottom: 36px;
+      }
+      .icon {
+        width: 48px;
+        height: 48px;
+        border-radius: 12px;
+        background: var(--ink);
+        display: grid;
+        place-items: center;
+      }
+      .brand {
+        font-size: 22px;
+        font-weight: 700;
+        letter-spacing: -0.02em;
+        line-height: 1.1;
+      }
+      .brand span {
+        display: block;
+        font-size: 12px;
+        font-weight: 600;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        color: var(--mute);
+        margin-top: 3px;
+      }
+      h1 {
+        font-family: Fraunces, ui-serif, Georgia, serif;
+        font-size: 68px;
+        font-weight: 650;
+        letter-spacing: -0.03em;
+        line-height: 0.98;
+      }
+      .sub {
+        margin-top: 22px;
+        max-width: 520px;
+        font-size: 22px;
+        line-height: 1.35;
+        color: var(--mute);
+        font-weight: 500;
+      }
+      .sheet {
+        align-self: center;
+        background: var(--sheet);
+        border: 1px solid var(--rule);
+        border-radius: 16px;
+        padding: 28px 30px 24px;
+        box-shadow:
+          0 1px 0 rgba(28, 25, 20, 0.06),
+          0 22px 48px rgba(28, 25, 20, 0.1);
+      }
+      .sheet-top {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 22px;
+      }
+      .kicker {
+        font-size: 12px;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        color: var(--mute);
+        font-weight: 600;
+      }
+      .rps {
+        font-family: Fraunces, ui-serif, Georgia, serif;
+        font-size: 32px;
+        font-weight: 650;
+        margin-top: 4px;
+      }
+      .ok {
+        border: 1px solid var(--rule);
+        border-radius: 999px;
+        padding: 6px 12px;
+        font-size: 13px;
+        font-weight: 700;
+      }
+      dl { display: grid; gap: 14px; }
+      .row {
+        display: flex;
+        justify-content: space-between;
+        gap: 16px;
+        padding-bottom: 12px;
+        border-bottom: 1px dashed var(--rule);
+        font-size: 18px;
+      }
+      .row:last-child { border-bottom: 0; padding-bottom: 0; }
+      dt { color: var(--mute); font-weight: 500; }
+      dd { font-weight: 600; text-align: right; }
+      .valor {
+        font-family: Fraunces, ui-serif, Georgia, serif;
+        font-size: 30px;
+        font-weight: 650;
+      }
+      .foot {
+        position: absolute;
+        left: 64px;
+        right: 64px;
+        bottom: 28px;
+        z-index: 1;
+        display: flex;
+        justify-content: space-between;
+        font-size: 14px;
+        font-weight: 600;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--mute);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="grain"></div>
+    <div class="frame">
+      <div>
+        <div class="mark">
+          <div class="icon" aria-hidden="true">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fbf7ef" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"/>
+              <path d="M14 2v5a1 1 0 0 0 1 1h5"/>
+              <path d="m9 15 2 2 4-4"/>
+            </svg>
+          </div>
+          <div class="brand">
+            NFeFácil
+            <span>Emissão direta</span>
+          </div>
+        </div>
+        <h1>A nota sai daqui.<br />Sem atravessador.</h1>
+        <p class="sub">NFS-e Paulistana e NF-e 55 com o seu A1. Direto no webservice oficial.</p>
+      </div>
+      <aside class="sheet">
+        <div class="sheet-top">
+          <div>
+            <p class="kicker">Recibo provisório</p>
+            <p class="rps">RPS A / 0072</p>
+          </div>
+          <span class="ok">Autorizada</span>
+        </div>
+        <dl>
+          <div class="row">
+            <dt>Tomador</dt>
+            <dd>Avant Projetos Ltda</dd>
+          </div>
+          <div class="row">
+            <dt>Serviço</dt>
+            <dd>01880 · assistência</dd>
+          </div>
+          <div class="row">
+            <dt>Valor</dt>
+            <dd class="valor">R$ 2.000,00</dd>
+          </div>
+        </dl>
+      </aside>
+    </div>
+    <p class="foot">
+      <span>Pref. SP · SEFAZ · A1</span>
+      <span>nfefacil.netlify.app</span>
+    </p>
+  </body>
+</html>
