@@ -1,5 +1,6 @@
 import type { Client } from "@libsql/client";
 
+import { attachOwnerToCompany } from "./auth";
 import { createCompany, getCompany } from "./companies";
 import type { Company, ServiceResult } from "./types";
 
@@ -35,5 +36,31 @@ export async function ensureWorkspace(
     nfeSeries: 1,
     nextNfeNumber: 1,
     sefazEnvironment: "homologation",
+  });
+}
+
+export const OWNER_EMAIL = "matheus.puppe@gmail.com";
+
+/** Liga o emitente existente ao e-mail do dono. */
+export async function seedOwnerAccount(client: Client): Promise<void> {
+  const companies = await client.execute(
+    "SELECT id FROM companies ORDER BY id ASC LIMIT 1",
+  );
+  if (companies.rows.length === 0) return;
+  const companyId = Number(
+    (companies.rows[0] as unknown as { id: number }).id,
+  );
+  const password = process.env.OWNER_BOOTSTRAP_PASSWORD;
+  if (!password) return;
+  const email = process.env.OWNER_BOOTSTRAP_EMAIL ?? OWNER_EMAIL;
+  await attachOwnerToCompany(client, {
+    email,
+    name: "Matheus Nunes Puppe",
+    password,
+    companyId,
+  });
+  await client.execute({
+    sql: `UPDATE companies SET email = ?, updated_at = unixepoch() WHERE id = ?`,
+    args: [email, companyId],
   });
 }

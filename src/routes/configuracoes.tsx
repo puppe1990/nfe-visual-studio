@@ -1,13 +1,16 @@
-import { createFileRoute, useRouter } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, useRouter } from "@tanstack/react-router";
 import { useState } from "react";
 
 import { AppShell } from "../components/AppShell";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import type { CompanyCertificate } from "../domain/certificates";
 import type { Inutilization, SefazEnvironment, TaxRegime } from "../domain/types";
 import {
   formatDateTime,
 } from "../lib/invoice-labels";
+import { changePasswordFn } from "../fns/auth-functions";
 import {
+  consultIssuerCnpjFn,
   getActiveCertificateFn,
   getWorkspaceFn,
   inutilizeNumbersFn,
@@ -16,7 +19,15 @@ import {
   updateCompanyFn,
 } from "../fns/nfe-functions";
 
+const CONFIG_TABS = ["empresa", "sessao", "certificado", "inutilizacao"] as const;
+type ConfigTab = (typeof CONFIG_TABS)[number];
+
 export const Route = createFileRoute("/configuracoes")({
+  validateSearch: (search: Record<string, unknown>): { tab: ConfigTab } => ({
+    tab: CONFIG_TABS.includes(search.tab as ConfigTab)
+      ? (search.tab as ConfigTab)
+      : "empresa",
+  }),
   head: () => ({ meta: [{ title: "Configurações — NFeFácil" }] }),
   loader: async () => {
     const [workspace, cert, inuts] = await Promise.all([
@@ -27,6 +38,7 @@ export const Route = createFileRoute("/configuracoes")({
     if (!workspace.ok) {
       return {
         company: null,
+        userEmail: null as string | null,
         certificate: null,
         inutilizations: [] as Inutilization[],
         error: workspace.error.message,
@@ -34,6 +46,7 @@ export const Route = createFileRoute("/configuracoes")({
     }
     return {
       company: workspace.data.company,
+      userEmail: workspace.data.user?.email ?? null,
       certificate: cert.ok ? cert.data.certificate : null,
       inutilizations: inuts.ok ? inuts.data.inutilizations : [],
       error: null as string | null,
@@ -45,6 +58,8 @@ export const Route = createFileRoute("/configuracoes")({
 function ConfigPage() {
   const data = Route.useLoaderData();
   const router = useRouter();
+  const search = Route.useSearch();
+  const navigate = useNavigate({ from: "/configuracoes" });
   const company = data.company;
 
   const [name, setName] = useState(company?.name ?? "");
@@ -63,6 +78,13 @@ function ConfigPage() {
   const [nextNfeNumber, setNextNfeNumber] = useState(
     String(company?.nextNfeNumber ?? 1),
   );
+  const [municipalRegistration, setMunicipalRegistration] = useState(
+    company?.municipalRegistration ?? "",
+  );
+  const [rpsSeries, setRpsSeries] = useState(company?.rpsSeries ?? "A");
+  const [nextRpsNumber, setNextRpsNumber] = useState(
+    String(company?.nextRpsNumber ?? 1),
+  );
   const [sefazEnvironment, setSefazEnvironment] = useState<SefazEnvironment>(
     company?.sefazEnvironment ?? "homologation",
   );
@@ -79,6 +101,9 @@ function ConfigPage() {
   const [error, setError] = useState<string | null>(data.error);
   const [success, setSuccess] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [nextPassword, setNextPassword] = useState("");
+  const [nextPasswordConfirm, setNextPasswordConfirm] = useState("");
 
   if (!company) {
     return (
@@ -108,6 +133,9 @@ function ConfigPage() {
         nfeSeries: Number(nfeSeries) || 1,
         nextNfeNumber: Number(nextNfeNumber) || 1,
         sefazEnvironment,
+        municipalRegistration: municipalRegistration || null,
+        rpsSeries,
+        nextRpsNumber: Number(nextRpsNumber) || 1,
       },
     });
     setSaving(false);
@@ -187,11 +215,11 @@ function ConfigPage() {
 
   return (
     <AppShell companyName={company.tradeName ?? company.name}>
-      <div className="mx-auto max-w-2xl space-y-6">
+      <div className="mx-auto max-w-3xl space-y-6">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Configurações</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Emitente, certificado A1, numeração e inutilização
+            Empresa, sessão, certificado e inutilização em abas
           </p>
         </div>
 
@@ -206,6 +234,22 @@ function ConfigPage() {
           </p>
         )}
 
+        <Tabs
+          value={search.tab}
+          onValueChange={(value) => {
+            void navigate({
+              search: { tab: value as ConfigTab },
+            });
+          }}
+        >
+          <TabsList className="flex h-auto w-full flex-wrap justify-start gap-1">
+            <TabsTrigger value="empresa">Empresa</TabsTrigger>
+            <TabsTrigger value="sessao">Sessão e senha</TabsTrigger>
+            <TabsTrigger value="certificado">Certificado A1</TabsTrigger>
+            <TabsTrigger value="inutilizacao">Inutilização</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="empresa">
         <form
           onSubmit={onSubmit}
           className="space-y-4 rounded-xl border border-border bg-card p-6"
@@ -246,9 +290,20 @@ function ConfigPage() {
             </label>
             <Field label="Série NF-e" value={nfeSeries} onChange={setNfeSeries} />
             <Field
-              label="Próximo número"
+              label="Próximo número NF-e"
               value={nextNfeNumber}
               onChange={setNextNfeNumber}
+            />
+            <Field
+              label="Inscrição municipal (CCM)"
+              value={municipalRegistration}
+              onChange={setMunicipalRegistration}
+            />
+            <Field label="Série RPS" value={rpsSeries} onChange={setRpsSeries} />
+            <Field
+              label="Próximo número RPS"
+              value={nextRpsNumber}
+              onChange={setNextRpsNumber}
             />
             <label className="block text-sm">
               <span className="text-muted-foreground">Ambiente SEFAZ</span>
@@ -265,15 +320,113 @@ function ConfigPage() {
             </label>
           </div>
 
-          <button
-            type="submit"
-            disabled={saving}
-            className="h-10 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground disabled:opacity-60"
-          >
-            {saving ? "Salvando…" : "Salvar empresa"}
-          </button>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="submit"
+              disabled={saving}
+              className="h-10 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground disabled:opacity-60"
+            >
+              {saving ? "Salvando…" : "Salvar empresa"}
+            </button>
+            <button
+              type="button"
+              disabled={saving}
+              onClick={async () => {
+                setSaving(true);
+                setError(null);
+                setSuccess(null);
+                const result = await consultIssuerCnpjFn();
+                setSaving(false);
+                if (!result.ok) {
+                  setError(result.error.message);
+                  return;
+                }
+                setMunicipalRegistration(result.data.municipalRegistration);
+                setSuccess(
+                  `Prefeitura OK. IM ${result.data.municipalRegistration}` +
+                    (result.data.emitsNfse ? " · habilitado para NFS-e" : ""),
+                );
+              }}
+              className="h-10 rounded-md border border-border bg-secondary px-4 text-sm font-medium disabled:opacity-60"
+            >
+              Testar Prefeitura (ConsultaCNPJ)
+            </button>
+          </div>
         </form>
+          </TabsContent>
 
+          <TabsContent value="sessao">
+        <section className="space-y-4 rounded-xl border border-border bg-card p-6">
+          <h2 className="font-semibold">Sessão e senha</h2>
+          <p className="text-sm text-muted-foreground">
+            Conta logada:{" "}
+            <strong className="text-foreground">
+              {data.userEmail ?? "—"}
+            </strong>
+            . A troca vale só para este usuário.
+          </p>
+          <form
+            className="grid gap-3 sm:grid-cols-2"
+            onSubmit={async (e) => {
+              e.preventDefault();
+              setSaving(true);
+              setError(null);
+              setSuccess(null);
+              if (nextPassword !== nextPasswordConfirm) {
+                setError("A confirmação da nova senha não confere.");
+                setSaving(false);
+                return;
+              }
+              const result = await changePasswordFn({
+                data: { currentPassword, nextPassword },
+              });
+              setSaving(false);
+              if (!result.ok) {
+                setError(result.error.message);
+                return;
+              }
+              setCurrentPassword("");
+              setNextPassword("");
+              setNextPasswordConfirm("");
+              setSuccess("Senha alterada. A sessão continua ativa.");
+            }}
+          >
+            <Field
+              label="Senha atual"
+              value={currentPassword}
+              onChange={setCurrentPassword}
+              type="password"
+              required
+            />
+            <div />
+            <Field
+              label="Nova senha"
+              value={nextPassword}
+              onChange={setNextPassword}
+              type="password"
+              required
+            />
+            <Field
+              label="Confirmar nova senha"
+              value={nextPasswordConfirm}
+              onChange={setNextPasswordConfirm}
+              type="password"
+              required
+            />
+            <div className="sm:col-span-2">
+              <button
+                type="submit"
+                disabled={saving}
+                className="h-10 rounded-md border border-border bg-secondary px-4 text-sm font-medium disabled:opacity-60"
+              >
+                {saving ? "Salvando…" : "Trocar senha"}
+              </button>
+            </div>
+          </form>
+        </section>
+          </TabsContent>
+
+          <TabsContent value="certificado">
         <section className="space-y-4 rounded-xl border border-border bg-card p-6">
           <h2 className="font-semibold">Certificado digital A1</h2>
           {certificate ? (
@@ -326,7 +479,9 @@ function ConfigPage() {
             </div>
           </form>
         </section>
+          </TabsContent>
 
+          <TabsContent value="inutilizacao">
         <section className="space-y-4 rounded-xl border border-border bg-card p-6">
           <h2 className="font-semibold">Inutilizar numeração</h2>
           <form onSubmit={onInutilize} className="grid gap-3 sm:grid-cols-2">
@@ -379,11 +534,13 @@ function ConfigPage() {
             </table>
           )}
         </section>
+          </TabsContent>
+        </Tabs>
 
         <p className="text-xs text-muted-foreground">
-          Adapter SEFAZ simulado: não envia ao webservice real. Em produção
-          cadastrar A1 e integrar WS por UF. Criptografia da senha do
-          certificado é MVP (não use como segurança final).
+          SEFAZ direto ligado (`SEFAZ_MODE=real`, UF SP). Ambiente do emitente
+          continua em homologação até você trocar para produção. Criptografia
+          da senha do certificado é MVP.
         </p>
       </div>
     </AppShell>
@@ -395,16 +552,19 @@ function Field({
   value,
   onChange,
   required,
+  type = "text",
 }: {
   label: string;
   value: string;
   onChange: (v: string) => void;
   required?: boolean;
+  type?: string;
 }) {
   return (
     <label className="block text-sm">
       <span className="text-muted-foreground">{label}</span>
       <input
+        type={type}
         className="mt-1.5 h-10 w-full rounded-md border border-border bg-background px-3"
         value={value}
         onChange={(e) => onChange(e.target.value)}

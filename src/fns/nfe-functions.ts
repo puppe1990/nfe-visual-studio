@@ -1,7 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 
-import { getMigratedDb } from "../db/client";
-import { ensureWorkspace } from "../domain/bootstrap";
+
 import * as certificates from "../domain/certificates";
 import * as companies from "../domain/companies";
 import * as customers from "../domain/customers";
@@ -9,24 +8,27 @@ import * as invoices from "../domain/invoices";
 import type { DraftItemInput } from "../domain/invoices";
 import * as inutilizations from "../domain/inutilizations";
 import * as products from "../domain/products";
-import type { InvoiceStatus, SefazEnvironment, TaxRegime } from "../domain/types";
+import * as serviceInvoices from "../domain/service-invoices";
+import type {
+  DashboardFilter,
+  InvoiceStatus,
+  NfseListFilter,
+  SefazEnvironment,
+  TaxRegime,
+} from "../domain/types";
 import { importProductsFromXml } from "../domain/xml-import";
 
 async function workspace() {
-  const db = await getMigratedDb();
-  const company = await ensureWorkspace(db);
-  if (!company.ok) {
-    return { db, company: null as null, error: company };
-  }
-  return { db, company: company.data.company, error: null as null };
+  const { requireWorkspace } = await import("./auth-workspace.server");
+  return requireWorkspace();
 }
 
 // —— Workspace / company ——
 
 export const getWorkspaceFn = createServerFn({ method: "GET" }).handler(async () => {
-  const { company, error } = await workspace();
+  const { company, user, error } = await workspace();
   if (error) return error;
-  return { ok: true as const, data: { company: company! } };
+  return { ok: true as const, data: { company: company!, user } };
 });
 
 export const updateCompanyFn = createServerFn({ method: "POST" })
@@ -48,6 +50,9 @@ export const updateCompanyFn = createServerFn({ method: "POST" })
       nfeSeries?: number;
       nextNfeNumber?: number;
       sefazEnvironment?: SefazEnvironment;
+      municipalRegistration?: string | null;
+      rpsSeries?: string;
+      nextRpsNumber?: number;
     }) => data,
   )
   .handler(async ({ data }) => {
@@ -172,16 +177,18 @@ export const updateCustomerFn = createServerFn({ method: "POST" })
 
 // —— Invoices ——
 
-export const getDashboardFn = createServerFn({ method: "GET" }).handler(async () => {
-  const { db, company, error } = await workspace();
-  if (error || !company) return error!;
-  const metrics = await invoices.getDashboardMetrics(db, company.id);
-  if (!metrics.ok) return metrics;
-  return {
-    ok: true as const,
-    data: { company, metrics: metrics.data },
-  };
-});
+export const getDashboardFn = createServerFn({ method: "GET" })
+  .validator((data?: DashboardFilter) => data ?? {})
+  .handler(async ({ data }) => {
+    const { db, company, error } = await workspace();
+    if (error || !company) return error!;
+    const metrics = await invoices.getDashboardMetrics(db, company.id, data);
+    if (!metrics.ok) return metrics;
+    return {
+      ok: true as const,
+      data: { company, metrics: metrics.data },
+    };
+  });
 
 export const listInvoicesFn = createServerFn({ method: "GET" })
   .validator((data?: { status?: InvoiceStatus | "all" }) => data ?? {})
@@ -318,3 +325,58 @@ export const inutilizeNumbersFn = createServerFn({ method: "POST" })
     if (error || !company) return error!;
     return inutilizations.inutilizeNumbers(db, company.id, data);
   });
+
+// —— NFS-e Prefeitura de São Paulo ——
+
+export const listServiceInvoicesFn = createServerFn({ method: "GET" })
+  .validator((data?: NfseListFilter) => data ?? {})
+  .handler(async ({ data }) => {
+    const { db, company, error } = await workspace();
+    if (error || !company) return error!;
+    return serviceInvoices.listServiceInvoices(db, company.id, data);
+  });
+
+export const createServiceInvoiceDraftFn = createServerFn({ method: "POST" })
+  .validator(
+    (data: {
+      customerId: number;
+      discrimination: string;
+      serviceCents: number;
+      serviceCode?: string;
+      issRate?: number;
+      issWithheld?: boolean;
+    }) => data,
+  )
+  .handler(async ({ data }) => {
+    const { db, company, error } = await workspace();
+    if (error || !company) return error!;
+    return serviceInvoices.createServiceInvoiceDraft(db, company.id, data);
+  });
+
+export const transmitServiceInvoiceFn = createServerFn({ method: "POST" })
+  .validator((data: { invoiceId: number }) => data)
+  .handler(async ({ data }) => {
+    const { db, company, error } = await workspace();
+    if (error || !company) return error!;
+    return serviceInvoices.transmitServiceInvoice(
+      db,
+      company.id,
+      data.invoiceId,
+    );
+  });
+
+export const consultIssuerCnpjFn = createServerFn({ method: "POST" }).handler(
+  async () => {
+    const { db, company, error } = await workspace();
+    if (error || !company) return error!;
+    return serviceInvoices.consultIssuerCnpj(db, company.id);
+  },
+);
+
+export const importHistoricServiceInvoicesFn = createServerFn({
+  method: "POST",
+}).handler(async () => {
+  const { db, company, error } = await workspace();
+  if (error || !company) return error!;
+  return serviceInvoices.importHistoricServiceInvoices(db, company.id);
+});

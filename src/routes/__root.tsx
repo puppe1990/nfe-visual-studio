@@ -3,10 +3,12 @@ import {
   Outlet,
   Link,
   createRootRouteWithContext,
+  redirect,
   useRouter,
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
+import { getCurrentUserFn } from "../fns/auth-functions";
 import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
@@ -73,6 +75,14 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
 }
 
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
+  beforeLoad: async ({ location }) => {
+    const publicPaths = ["/login", "/cadastro"];
+    if (publicPaths.includes(location.pathname)) return;
+    const me = await getCurrentUserFn();
+    if (!me.ok) {
+      throw redirect({ to: "/login" });
+    }
+  },
   head: () => ({
     meta: [
       { charSet: "utf-8" },
@@ -83,15 +93,23 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { property: "og:title", content: "NFeFácil — Emissão de NF-e" },
       { property: "og:description", content: "Emita e gerencie suas Notas Fiscais Eletrônicas com agilidade." },
       { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary_large_image" },
+      { name: "twitter:card", content: "summary" },
       { name: "twitter:site", content: "@Lovable" },
+      { name: "theme-color", content: "#005589" },
+      { name: "mobile-web-app-capable", content: "yes" },
+      { name: "apple-mobile-web-app-capable", content: "yes" },
+      { name: "apple-mobile-web-app-title", content: "NFeFácil" },
+      { name: "apple-mobile-web-app-status-bar-style", content: "default" },
     ],
     links: [
       {
         rel: "stylesheet",
         href: appCss,
       },
-      { rel: "icon", href: "/favicon.ico", type: "image/x-icon" },
+      { rel: "icon", href: "/favicon.svg", type: "image/svg+xml" },
+      { rel: "icon", href: "/favicon.ico", sizes: "48x48" },
+      { rel: "apple-touch-icon", href: "/apple-touch-icon.png" },
+      { rel: "manifest", href: "/manifest.webmanifest" },
     ],
   }),
   shellComponent: RootShell,

@@ -27,6 +27,9 @@ const company: Company = {
   nfeSeries: 1,
   nextNfeNumber: 1,
   sefazEnvironment: "homologation",
+  municipalRegistration: null,
+  rpsSeries: "A",
+  nextRpsNumber: 1,
   createdAt: 0,
   updatedAt: 0,
 };

@@ -1,3 +1,9 @@
+export type AuthUser = {
+  id: number
+  email: string
+  name: string
+}
+
 export type ServiceError = { code: string; message: string }
 export type ServiceResult<T> =
   | { ok: true; data: T }
@@ -31,6 +37,63 @@ export type Company = {
   nfeSeries: number
   nextNfeNumber: number
   sefazEnvironment: SefazEnvironment
+  municipalRegistration: string | null
+  rpsSeries: string
+  nextRpsNumber: number
+  createdAt: number
+  updatedAt: number
+}
+
+export type NfseListSort =
+  | "issuedAt"
+  | "nfseNumber"
+  | "total"
+  | "customer"
+  | "status"
+export type NfseListDir = "asc" | "desc"
+
+export type NfseListFilter = {
+  status?: InvoiceStatus | "all"
+  customerId?: number | null
+  dateFrom?: string | null
+  dateTo?: string | null
+  page?: number
+  pageSize?: number
+  sort?: NfseListSort
+  dir?: NfseListDir
+}
+
+export type NfseListResult = {
+  invoices: ServiceInvoice[]
+  total: number
+  page: number
+  pageSize: number
+  sort: NfseListSort
+  dir: NfseListDir
+}
+
+export type ServiceInvoice = {
+  id: number
+  companyId: number
+  customerId: number
+  customerName?: string
+  rpsSeries: string
+  rpsNumber: number
+  nfseNumber: number | null
+  verificationCode: string | null
+  serviceCode: string
+  discrimination: string
+  taxation: string
+  issRate: number
+  issWithheld: boolean
+  status: InvoiceStatus
+  subtotalCents: number
+  issCents: number
+  totalCents: number
+  xmlContent: string | null
+  returnXml: string | null
+  rejectionReason: string | null
+  issuedAt: number | null
   createdAt: number
   updatedAt: number
 }
@@ -122,6 +185,30 @@ export type Inutilization = {
   createdAt: number
 }
 
+export type DashboardRecentItem = {
+  id: string
+  kind: 'nfe' | 'nfse'
+  numberLabel: string
+  customerName: string
+  issuedAt: number | null
+  createdAt: number
+  totalCents: number
+  status: InvoiceStatus
+}
+
+export type DashboardKindFilter = 'all' | 'nfse' | 'nfe'
+export type DashboardStatusFilter = 'all' | InvoiceStatus
+
+export type DashboardFilter = {
+  kind?: DashboardKindFilter
+  status?: DashboardStatusFilter
+  customerId?: number | null
+  dateFrom?: string | null
+  dateTo?: string | null
+  page?: number
+  pageSize?: number
+}
+
 export type DashboardMetrics = {
   authorizedCount: number
   revenueCents: number
@@ -129,4 +216,8 @@ export type DashboardMetrics = {
   rejectedCount: number
   last7Days: { day: string; count: number }[]
   recentInvoices: Invoice[]
+  recentItems: DashboardRecentItem[]
+  recentTotal: number
+  page: number
+  pageSize: number
 }
