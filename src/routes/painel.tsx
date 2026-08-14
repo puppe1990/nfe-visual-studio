@@ -24,6 +24,7 @@ import {
   parseDashboardSearch,
   type DashboardSearch,
 } from "../lib/dashboard-search";
+import { chartAxisLabel, chartUnitLabel } from "../domain/dashboard-chart";
 import { isoDate } from "../lib/iso-date";
 import { formatCents } from "../lib/money";
 import { getDashboardFn, listCustomersFn } from "../fns/nfe-functions";
@@ -286,7 +287,8 @@ function DashboardPage() {
               <div>
                 <h2 className="font-semibold">Emissões no período</h2>
                 <p className="text-xs text-muted-foreground">
-                  Quantidade de notas autorizadas por dia
+                  Quantidade de notas autorizadas{" "}
+                  {chartUnitLabel(metrics.chartBucket)}
                 </p>
               </div>
               <div className="flex items-center gap-1 text-xs text-muted-foreground">
@@ -295,13 +297,13 @@ function DashboardPage() {
               </div>
             </div>
             <DashboardBarChart
-              data={metrics.last7Days.map(
+              data={metrics.chartSeries.map(
                 (d: { day: string; count: number }) => d.count,
               )}
-              labels={metrics.last7Days.map((d: { day: string; count: number }) => {
-                const [, m, day] = d.day.split("-");
-                return `${day}/${m}`;
-              })}
+              labels={metrics.chartSeries.map(
+                (d: { day: string; count: number }) =>
+                  chartAxisLabel(d.day, metrics.chartBucket),
+              )}
             />
           </div>
           <div className="rounded-xl border border-border bg-card p-6">

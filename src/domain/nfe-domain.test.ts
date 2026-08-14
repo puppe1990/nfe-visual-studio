@@ -245,7 +245,9 @@ describe('nfe domain (turso file)', () => {
       expect(metrics.data.revenueCents).toBe(10_600) // 10000 + 6%
       expect(metrics.data.pendingCount).toBe(1)
       expect(metrics.data.recentInvoices.length).toBeGreaterThanOrEqual(1)
-      expect(metrics.data.last7Days).toHaveLength(7)
+      expect(metrics.data.chartSeries.some((point) => point.count >= 1)).toBe(
+        true,
+      )
     })
   })
 

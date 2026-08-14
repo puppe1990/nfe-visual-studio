@@ -75,6 +75,34 @@ describe("dashboard filters", () => {
     expect(metrics.data.recentItems[0]?.numberLabel).toBe("NFS-e 11");
   });
 
+  it("charts the whole year by month so March is not dropped", async () => {
+    const metrics = await getDashboardMetrics(client, companyId, {
+      dateFrom: "2026-01-01",
+      dateTo: "2026-08-14",
+    });
+    expect(metrics.ok).toBe(true);
+    if (!metrics.ok) return;
+    expect(metrics.data.chartBucket).toBe("month");
+    expect(metrics.data.chartSeries.map((point) => point.day)).toEqual([
+      "2026-01-01",
+      "2026-02-01",
+      "2026-03-01",
+      "2026-04-01",
+      "2026-05-01",
+      "2026-06-01",
+      "2026-07-01",
+      "2026-08-01",
+    ]);
+    expect(
+      metrics.data.chartSeries.find((point) => point.day === "2026-03-01")
+        ?.count,
+    ).toBe(1);
+    expect(
+      metrics.data.chartSeries.find((point) => point.day === "2026-08-01")
+        ?.count,
+    ).toBe(1);
+  });
+
   it("filters by document kind", async () => {
     const onlyNfe = await getDashboardMetrics(client, companyId, {
       kind: "nfe",
