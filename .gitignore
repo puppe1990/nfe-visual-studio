@@ -17,6 +17,9 @@ dist-ssr
 *.local
 *.db
 *.db-*
+.env
+*.pfx
+*.p12
 
 # Wrangler / Cloudflare
 .wrangler/

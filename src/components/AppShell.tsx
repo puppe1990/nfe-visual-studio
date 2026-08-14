@@ -1,4 +1,7 @@
-import { Link, useRouterState } from "@tanstack/react-router";
+import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
+import { useEffect, useState, type ReactNode } from "react";
+
+import { getCurrentUserFn, logoutFn } from "../fns/auth-functions";
 import {
   Bell,
   FileCheck,
@@ -10,12 +13,13 @@ import {
   Settings,
   Users,
 } from "lucide-react";
-import type { ReactNode } from "react";
 
 const navItems = [
   { to: "/", label: "Painel", icon: LayoutDashboard },
-  { to: "/emitir", label: "Emitir NF-e", icon: Plus },
-  { to: "/notas", label: "Notas Emitidas", icon: FileText },
+  { to: "/emitir-nfse", label: "Emitir NFS-e", icon: Plus },
+  { to: "/nfse", label: "NFS-e emitidas", icon: FileCheck },
+  { to: "/emitir", label: "Emitir NF-e", icon: FileText },
+  { to: "/notas", label: "NF-e emitidas", icon: FileText },
   { to: "/clientes", label: "Clientes", icon: Users },
   { to: "/produtos", label: "Produtos", icon: Package },
   { to: "/configuracoes", label: "Configurações", icon: Settings },
@@ -29,6 +33,14 @@ export function AppShell({
   companyName?: string;
 }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const navigate = useNavigate();
+  const [userEmail, setUserEmail] = useState<string | null>(null);
+
+  useEffect(() => {
+    void getCurrentUserFn().then((result) => {
+      if (result.ok) setUserEmail(result.data.user.email);
+    });
+  }, []);
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -78,7 +90,7 @@ export function AppShell({
                 SEFAZ adapter
               </div>
               <div className="mt-1 text-muted-foreground">
-                Simulado · A1 em Configurações
+                NFS-e Pref. SP · oficial
               </div>
             </div>
           </div>
@@ -106,8 +118,19 @@ export function AppShell({
                   <div className="text-sm font-medium">
                     {companyName ?? "Empresa"}
                   </div>
-                  <div className="text-xs text-muted-foreground">Workspace demo</div>
+                  <div className="text-xs text-muted-foreground">
+                    {userEmail ?? "…"}
+                  </div>
                 </div>
+                <button
+                  type="button"
+                  className="text-xs text-muted-foreground hover:text-foreground"
+                  onClick={() => {
+                    void logoutFn().then(() => navigate({ to: "/login" }));
+                  }}
+                >
+                  Sair
+                </button>
                 <div className="grid size-9 place-items-center rounded-full bg-gradient-to-br from-primary to-[oklch(0.55_0.14_200)] text-sm font-medium text-primary-foreground">
                   NF
                 </div>

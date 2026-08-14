@@ -20,6 +20,9 @@ CREATE TABLE IF NOT EXISTS companies (
   nfe_series INTEGER NOT NULL DEFAULT 1,
   next_nfe_number INTEGER NOT NULL DEFAULT 1,
   sefaz_environment TEXT NOT NULL DEFAULT 'homologation',
+  municipal_registration TEXT,
+  rps_series TEXT NOT NULL DEFAULT 'A',
+  next_rps_number INTEGER NOT NULL DEFAULT 1,
   created_at INTEGER NOT NULL DEFAULT (unixepoch()),
   updated_at INTEGER NOT NULL DEFAULT (unixepoch())
 );
@@ -162,4 +165,30 @@ CREATE TABLE IF NOT EXISTS invoice_mail_log (
   status TEXT NOT NULL DEFAULT 'sent',
   error_message TEXT,
   created_at INTEGER NOT NULL DEFAULT (unixepoch())
+);
+
+-- NFS-e Prefeitura de São Paulo (substituição de RPS)
+CREATE TABLE IF NOT EXISTS service_invoices (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  company_id INTEGER NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+  customer_id INTEGER NOT NULL REFERENCES customers(id) ON DELETE RESTRICT,
+  rps_series TEXT NOT NULL,
+  rps_number INTEGER NOT NULL,
+  nfse_number INTEGER,
+  verification_code TEXT,
+  service_code TEXT NOT NULL,
+  discrimination TEXT NOT NULL,
+  taxation TEXT NOT NULL DEFAULT 'T',
+  iss_rate REAL NOT NULL DEFAULT 0.05,
+  iss_withheld INTEGER NOT NULL DEFAULT 0,
+  status TEXT NOT NULL DEFAULT 'draft',
+  subtotal_cents INTEGER NOT NULL DEFAULT 0,
+  iss_cents INTEGER NOT NULL DEFAULT 0,
+  total_cents INTEGER NOT NULL DEFAULT 0,
+  xml_content TEXT,
+  return_xml TEXT,
+  rejection_reason TEXT,
+  issued_at INTEGER,
+  created_at INTEGER NOT NULL DEFAULT (unixepoch()),
+  updated_at INTEGER NOT NULL DEFAULT (unixepoch())
 );

@@ -45,6 +45,9 @@ const SCHEMA_ALTERs = [
   'ALTER TABLE invoices ADD COLUMN cancel_protocol TEXT',
   'ALTER TABLE invoices ADD COLUMN cancel_justification TEXT',
   'ALTER TABLE invoices ADD COLUMN canceled_at INTEGER',
+  'ALTER TABLE companies ADD COLUMN municipal_registration TEXT',
+  "ALTER TABLE companies ADD COLUMN rps_series TEXT NOT NULL DEFAULT 'A'",
+  'ALTER TABLE companies ADD COLUMN next_rps_number INTEGER NOT NULL DEFAULT 1',
 ]
 
 export async function migrate(client: Client): Promise<void> {
@@ -90,6 +93,8 @@ export async function getMigratedDb(): Promise<Client> {
   const client = getDb()
   if (!migrated) {
     await migrate(client)
+    const { seedOwnerAccount } = await import('../domain/bootstrap')
+    await seedOwnerAccount(client)
     migrated = true
   }
   return client

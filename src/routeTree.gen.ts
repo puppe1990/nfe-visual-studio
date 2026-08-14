@@ -10,15 +10,24 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as CadastroRouteImport } from './routes/cadastro'
 import { Route as ClientesRouteImport } from './routes/clientes'
 import { Route as ConfiguracoesRouteImport } from './routes/configuracoes'
 import { Route as EmitirRouteImport } from './routes/emitir'
+import { Route as EmitirNfseRouteImport } from './routes/emitir-nfse'
+import { Route as LoginRouteImport } from './routes/login'
+import { Route as NfseRouteImport } from './routes/nfse'
 import { Route as NotasRouteImport } from './routes/notas'
 import { Route as ProdutosRouteImport } from './routes/produtos'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CadastroRoute = CadastroRouteImport.update({
+  id: '/cadastro',
+  path: '/cadastro',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ClientesRoute = ClientesRouteImport.update({
@@ -36,6 +45,21 @@ const EmitirRoute = EmitirRouteImport.update({
   path: '/emitir',
   getParentRoute: () => rootRouteImport,
 } as any)
+const EmitirNfseRoute = EmitirNfseRouteImport.update({
+  id: '/emitir-nfse',
+  path: '/emitir-nfse',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const NfseRoute = NfseRouteImport.update({
+  id: '/nfse',
+  path: '/nfse',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const NotasRoute = NotasRouteImport.update({
   id: '/notas',
   path: '/notas',
@@ -49,50 +73,89 @@ const ProdutosRoute = ProdutosRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/cadastro': typeof CadastroRoute
   '/clientes': typeof ClientesRoute
   '/configuracoes': typeof ConfiguracoesRoute
   '/emitir': typeof EmitirRoute
+  '/emitir-nfse': typeof EmitirNfseRoute
+  '/login': typeof LoginRoute
+  '/nfse': typeof NfseRoute
   '/notas': typeof NotasRoute
   '/produtos': typeof ProdutosRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/cadastro': typeof CadastroRoute
   '/clientes': typeof ClientesRoute
   '/configuracoes': typeof ConfiguracoesRoute
   '/emitir': typeof EmitirRoute
+  '/emitir-nfse': typeof EmitirNfseRoute
+  '/login': typeof LoginRoute
+  '/nfse': typeof NfseRoute
   '/notas': typeof NotasRoute
   '/produtos': typeof ProdutosRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/cadastro': typeof CadastroRoute
   '/clientes': typeof ClientesRoute
   '/configuracoes': typeof ConfiguracoesRoute
   '/emitir': typeof EmitirRoute
+  '/emitir-nfse': typeof EmitirNfseRoute
+  '/login': typeof LoginRoute
+  '/nfse': typeof NfseRoute
   '/notas': typeof NotasRoute
   '/produtos': typeof ProdutosRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
-    '/' | '/clientes' | '/configuracoes' | '/emitir' | '/notas' | '/produtos'
-  fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/clientes' | '/configuracoes' | '/emitir' | '/notas' | '/produtos'
-  id:
-    | '__root__'
     | '/'
+    | '/cadastro'
     | '/clientes'
     | '/configuracoes'
     | '/emitir'
+    | '/emitir-nfse'
+    | '/login'
+    | '/nfse'
+    | '/notas'
+    | '/produtos'
+  fileRoutesByTo: FileRoutesByTo
+  to:
+    | '/'
+    | '/cadastro'
+    | '/clientes'
+    | '/configuracoes'
+    | '/emitir'
+    | '/emitir-nfse'
+    | '/login'
+    | '/nfse'
+    | '/notas'
+    | '/produtos'
+  id:
+    | '__root__'
+    | '/'
+    | '/cadastro'
+    | '/clientes'
+    | '/configuracoes'
+    | '/emitir'
+    | '/emitir-nfse'
+    | '/login'
+    | '/nfse'
     | '/notas'
     | '/produtos'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  CadastroRoute: typeof CadastroRoute
   ClientesRoute: typeof ClientesRoute
   ConfiguracoesRoute: typeof ConfiguracoesRoute
   EmitirRoute: typeof EmitirRoute
+  EmitirNfseRoute: typeof EmitirNfseRoute
+  LoginRoute: typeof LoginRoute
+  NfseRoute: typeof NfseRoute
   NotasRoute: typeof NotasRoute
   ProdutosRoute: typeof ProdutosRoute
 }
@@ -104,6 +167,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/cadastro': {
+      id: '/cadastro'
+      path: '/cadastro'
+      fullPath: '/cadastro'
+      preLoaderRoute: typeof CadastroRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/clientes': {
@@ -127,6 +197,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof EmitirRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/emitir-nfse': {
+      id: '/emitir-nfse'
+      path: '/emitir-nfse'
+      fullPath: '/emitir-nfse'
+      preLoaderRoute: typeof EmitirNfseRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/nfse': {
+      id: '/nfse'
+      path: '/nfse'
+      fullPath: '/nfse'
+      preLoaderRoute: typeof NfseRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/notas': {
       id: '/notas'
       path: '/notas'
@@ -146,9 +237,13 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  CadastroRoute: CadastroRoute,
   ClientesRoute: ClientesRoute,
   ConfiguracoesRoute: ConfiguracoesRoute,
   EmitirRoute: EmitirRoute,
+  EmitirNfseRoute: EmitirNfseRoute,
+  LoginRoute: LoginRoute,
+  NfseRoute: NfseRoute,
   NotasRoute: NotasRoute,
   ProdutosRoute: ProdutosRoute,
 }

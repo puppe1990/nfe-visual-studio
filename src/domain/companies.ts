@@ -24,6 +24,12 @@ function mapCompany(row: Record<string, unknown>): Company {
     nfeSeries: Number(row.nfe_series),
     nextNfeNumber: Number(row.next_nfe_number),
     sefazEnvironment: String(row.sefaz_environment) as SefazEnvironment,
+    municipalRegistration:
+      row.municipal_registration == null
+        ? null
+        : String(row.municipal_registration),
+    rpsSeries: String(row.rps_series ?? 'A'),
+    nextRpsNumber: Number(row.next_rps_number ?? 1),
     createdAt: Number(row.created_at) * 1000,
     updatedAt: Number(row.updated_at) * 1000,
   }
@@ -153,6 +159,9 @@ export async function updateCompany(
     nfeSeries?: number
     nextNfeNumber?: number
     sefazEnvironment?: SefazEnvironment
+    municipalRegistration?: string | null
+    rpsSeries?: string
+    nextRpsNumber?: number
   },
 ): Promise<ServiceResult<{ company: Company }>> {
   const existing = await getCompany(client, companyId)
@@ -172,6 +181,7 @@ export async function updateCompany(
             zip = ?, street = ?, number = ?, complement = ?, district = ?,
             city = ?, state = ?, tax_regime = ?, nfe_series = ?,
             next_nfe_number = ?, sefaz_environment = ?,
+            municipal_registration = ?, rps_series = ?, next_rps_number = ?,
             updated_at = unixepoch()
           WHERE id = ?`,
     args: [
@@ -213,6 +223,11 @@ export async function updateCompany(
       payload.nfeSeries ?? existing.data.company.nfeSeries,
       payload.nextNfeNumber ?? existing.data.company.nextNfeNumber,
       payload.sefazEnvironment ?? existing.data.company.sefazEnvironment,
+      payload.municipalRegistration !== undefined
+        ? payload.municipalRegistration?.replace(/\D/g, '') || null
+        : existing.data.company.municipalRegistration,
+      payload.rpsSeries?.trim() || existing.data.company.rpsSeries,
+      payload.nextRpsNumber ?? existing.data.company.nextRpsNumber,
       companyId,
     ],
   })
