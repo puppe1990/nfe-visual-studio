@@ -1,4 +1,4 @@
-export const SITE_URL = "https://nfefacil.netlify.app";
+export const SITE_URL = "https://nfe.gestaobem.com";
 export const OG_IMAGE_URL = `${SITE_URL}/og.png`;
 
 export const SITE_TITLE = "NFeFácil — NFS-e e NF-e sem intermediário";
