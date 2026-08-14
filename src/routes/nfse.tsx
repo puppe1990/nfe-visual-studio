@@ -1,8 +1,9 @@
 import { createFileRoute, useNavigate, useRouter } from "@tanstack/react-router";
-import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight } from "lucide-react";
 import { useState } from "react";
 
 import { AppShell } from "../components/AppShell";
+import { NotesPager } from "../components/NotesPager";
+import { NfseSortHeader } from "../components/NfseSortHeader";
 import { buildNfsePrintUrl } from "../domain/nfse-public-url";
 import type {
   Customer,
@@ -12,7 +13,9 @@ import type {
   ServiceInvoice,
 } from "../domain/types";
 import { formatDateTime, invoiceStatusLabels } from "../lib/invoice-labels";
+import { isoDate } from "../lib/iso-date";
 import { formatCents } from "../lib/money";
+import { parseNfseSearch, type NfseSearch } from "../lib/nfse-search";
 import {
   getWorkspaceFn,
   importHistoricServiceInvoicesFn,
@@ -20,75 +23,9 @@ import {
   listServiceInvoicesFn,
 } from "../fns/nfe-functions";
 
-type NfseSearch = {
-  status?: InvoiceStatus | "all";
-  customerId?: number;
-  from?: string;
-  to?: string;
-  page?: number;
-  sort?: NfseListSort;
-  dir?: NfseListDir;
-};
-
-const STATUS_VALUES = [
-  "all",
-  "draft",
-  "pending",
-  "authorized",
-  "rejected",
-  "canceled",
-] as const;
-
-const SORT_VALUES: NfseListSort[] = [
-  "issuedAt",
-  "nfseNumber",
-  "total",
-  "customer",
-  "status",
-];
-
-function isoDate(d: Date): string {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
-
-function parseSearch(search: Record<string, unknown>): NfseSearch {
-  const status = STATUS_VALUES.includes(
-    search.status as (typeof STATUS_VALUES)[number],
-  )
-    ? (search.status as InvoiceStatus | "all")
-    : "all";
-  const customerRaw = search.customerId;
-  const customerId =
-    typeof customerRaw === "number"
-      ? customerRaw
-      : typeof customerRaw === "string" && customerRaw
-        ? Number(customerRaw)
-        : undefined;
-  const pageRaw = search.page;
-  const page =
-    typeof pageRaw === "number"
-      ? pageRaw
-      : typeof pageRaw === "string" && pageRaw
-        ? Number(pageRaw)
-        : undefined;
-  const sort = SORT_VALUES.includes(search.sort as NfseListSort)
-    ? (search.sort as NfseListSort)
-    : undefined;
-  const dir = search.dir === "asc" || search.dir === "desc" ? search.dir : undefined;
-  return {
-    status: status === "all" ? undefined : status,
-    customerId: Number.isFinite(customerId) ? customerId : undefined,
-    from: typeof search.from === "string" ? search.from : undefined,
-    to: typeof search.to === "string" ? search.to : undefined,
-    page: Number.isFinite(page) && page && page > 1 ? Math.floor(page) : undefined,
-    sort,
-    dir,
-  };
-}
-
 export const Route = createFileRoute("/nfse")({
   head: () => ({ meta: [{ title: "NFS-e emitidas — NFeFácil" }] }),
-  validateSearch: parseSearch,
+  validateSearch: parseNfseSearch,
   loaderDeps: ({ search }) => ({
     status: search.status,
     customerId: search.customerId,
@@ -350,7 +287,7 @@ function NfseListPage() {
             <table className="w-full text-sm">
               <thead className="bg-secondary text-xs tracking-wide text-muted-foreground uppercase">
                 <tr>
-                  <SortHeader
+                  <NfseSortHeader
                     label="NFS-e"
                     column="nfseNumber"
                     active={data.sort}
@@ -358,21 +295,21 @@ function NfseListPage() {
                     onSort={toggleSort}
                   />
                   <th className="px-4 py-2 text-left font-medium">RPS</th>
-                  <SortHeader
+                  <NfseSortHeader
                     label="Tomador"
                     column="customer"
                     active={data.sort}
                     dir={data.dir}
                     onSort={toggleSort}
                   />
-                  <SortHeader
+                  <NfseSortHeader
                     label="Status"
                     column="status"
                     active={data.sort}
                     dir={data.dir}
                     onSort={toggleSort}
                   />
-                  <SortHeader
+                  <NfseSortHeader
                     label="Valor"
                     column="total"
                     align="right"
@@ -381,7 +318,7 @@ function NfseListPage() {
                     onSort={toggleSort}
                   />
                   <th className="px-4 py-2 text-left font-medium">Código</th>
-                  <SortHeader
+                  <NfseSortHeader
                     label="Data"
                     column="issuedAt"
                     active={data.sort}
@@ -458,6 +395,7 @@ function NfseListPage() {
             pageSize={data.pageSize}
             total={data.total}
             onPage={(page) => patchSearch({ page: page > 1 ? page : undefined })}
+            padClass="px-4"
           />
         </div>
         {data.invoices.some((row: ServiceInvoice) => row.rejectionReason) && (
@@ -476,84 +414,3 @@ function NfseListPage() {
   );
 }
 
-function SortHeader({
-  label,
-  column,
-  active,
-  dir,
-  onSort,
-  align = "left",
-}: {
-  label: string;
-  column: NfseListSort;
-  active: NfseListSort;
-  dir: NfseListDir;
-  onSort: (column: NfseListSort) => void;
-  align?: "left" | "right";
-}) {
-  const isActive = active === column;
-  return (
-    <th className={`px-4 py-2 font-medium ${align === "right" ? "text-right" : "text-left"}`}>
-      <button
-        type="button"
-        onClick={() => onSort(column)}
-        className={`inline-flex items-center gap-1 ${align === "right" ? "flex-row-reverse" : ""} ${
-          isActive ? "text-foreground" : "hover:text-foreground"
-        }`}
-      >
-        {label}
-        {isActive ? (
-          dir === "asc" ? (
-            <ArrowUp className="size-3.5" />
-          ) : (
-            <ArrowDown className="size-3.5" />
-          )
-        ) : (
-          <span className="size-3.5" aria-hidden />
-        )}
-      </button>
-    </th>
-  );
-}
-
-function NotesPager({
-  page,
-  pageSize,
-  total,
-  onPage,
-}: {
-  page: number;
-  pageSize: number;
-  total: number;
-  onPage: (page: number) => void;
-}) {
-  const totalPages = Math.max(1, Math.ceil(total / pageSize));
-  if (total <= pageSize) return null;
-  return (
-    <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border px-4 py-3">
-      <p className="text-xs text-muted-foreground">
-        Página {page} de {totalPages}
-      </p>
-      <div className="flex items-center gap-2">
-        <button
-          type="button"
-          disabled={page <= 1}
-          onClick={() => onPage(page - 1)}
-          className="inline-flex h-8 items-center gap-1 rounded-md border border-border px-3 text-xs font-medium disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          <ChevronLeft className="size-3.5" />
-          Anterior
-        </button>
-        <button
-          type="button"
-          disabled={page >= totalPages}
-          onClick={() => onPage(page + 1)}
-          className="inline-flex h-8 items-center gap-1 rounded-md border border-border px-3 text-xs font-medium disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          Próxima
-          <ChevronRight className="size-3.5" />
-        </button>
-      </div>
-    </div>
-  );
-}

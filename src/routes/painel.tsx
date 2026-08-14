@@ -1,8 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import {
   AlertCircle,
-  CheckCircle2,
-  ChevronLeft,
   ChevronRight,
   Clock,
   DollarSign,
@@ -14,69 +12,28 @@ import {
 } from "lucide-react";
 
 import { AppShell } from "../components/AppShell";
+import { DashboardRecentTable } from "../components/DashboardRecentTable";
+import {
+  DashboardBarChart,
+  DashboardQuickLink,
+  DashboardStatCard,
+} from "../components/DashboardWidgets";
+import { NotesPager } from "../components/NotesPager";
 import type { Customer } from "../domain/types";
-import { formatDateTime, invoiceStatusLabels } from "../lib/invoice-labels";
+import {
+  parseDashboardSearch,
+  type DashboardSearch,
+} from "../lib/dashboard-search";
+import { isoDate } from "../lib/iso-date";
 import { formatCents } from "../lib/money";
 import { getDashboardFn, listCustomersFn } from "../fns/nfe-functions";
 import type {
   DashboardKindFilter,
-  DashboardRecentItem,
   DashboardStatusFilter,
-  InvoiceStatus,
 } from "../domain/types";
 
-type DashboardSearch = {
-  kind?: DashboardKindFilter;
-  status?: DashboardStatusFilter;
-  customerId?: number;
-  from?: string;
-  to?: string;
-  page?: number;
-};
-
-function isoDate(d: Date): string {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
-
 export const Route = createFileRoute("/painel")({
-  validateSearch: (search: Record<string, unknown>): DashboardSearch => {
-    const kind =
-      search.kind === "nfe" || search.kind === "nfse" ? search.kind : "all";
-    const statusValues = [
-      "all",
-      "draft",
-      "pending",
-      "authorized",
-      "rejected",
-      "canceled",
-    ] as const;
-    const status = statusValues.includes(search.status as DashboardStatusFilter)
-      ? (search.status as DashboardStatusFilter)
-      : "all";
-    const customerRaw = search.customerId;
-    const customerId =
-      typeof customerRaw === "number"
-        ? customerRaw
-        : typeof customerRaw === "string" && customerRaw
-          ? Number(customerRaw)
-          : undefined;
-    const pageRaw = search.page;
-    const page =
-      typeof pageRaw === "number"
-        ? pageRaw
-        : typeof pageRaw === "string" && pageRaw
-          ? Number(pageRaw)
-          : undefined;
-    return {
-      kind: kind === "all" ? undefined : kind,
-      status: status === "all" ? undefined : status,
-      customerId: Number.isFinite(customerId) ? customerId : undefined,
-      from: typeof search.from === "string" ? search.from : undefined,
-      to: typeof search.to === "string" ? search.to : undefined,
-      page:
-        Number.isFinite(page) && page && page > 1 ? Math.floor(page) : undefined,
-    };
-  },
+  validateSearch: parseDashboardSearch,
   head: () => ({
     meta: [
       { title: "Painel — NFeFácil" },
@@ -297,25 +254,25 @@ function DashboardPage() {
         </div>
 
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <StatCard
+          <DashboardStatCard
             label="Notas emitidas"
             value={String(metrics.authorizedCount)}
             icon={<FileCheck className="size-5" />}
             tone="primary"
           />
-          <StatCard
+          <DashboardStatCard
             label="Faturamento"
             value={formatCents(metrics.revenueCents)}
             icon={<DollarSign className="size-5" />}
             tone="success"
           />
-          <StatCard
+          <DashboardStatCard
             label="Pendentes / rascunhos"
             value={String(metrics.pendingCount)}
             icon={<Clock className="size-5" />}
             tone="warning"
           />
-          <StatCard
+          <DashboardStatCard
             label="Rejeitadas"
             value={String(metrics.rejectedCount)}
             icon={<AlertCircle className="size-5" />}
@@ -337,7 +294,7 @@ function DashboardPage() {
                 Dados reais do banco
               </div>
             </div>
-            <BarChart
+            <DashboardBarChart
               data={metrics.last7Days.map(
                 (d: { day: string; count: number }) => d.count,
               )}
@@ -350,25 +307,25 @@ function DashboardPage() {
           <div className="rounded-xl border border-border bg-card p-6">
             <h2 className="mb-4 font-semibold">Ações rápidas</h2>
             <div className="space-y-2">
-              <QuickLink
+              <DashboardQuickLink
                 to="/emitir-nfse"
                 icon={<Plus className="size-4" />}
                 label="Nova NFS-e"
                 desc="Emitir nota de serviço"
               />
-              <QuickLink
+              <DashboardQuickLink
                 to="/nfse"
                 icon={<FileCheck className="size-4" />}
                 label="NFS-e emitidas"
                 desc="Histórico e PDF"
               />
-              <QuickLink
+              <DashboardQuickLink
                 to="/clientes"
                 icon={<Users className="size-4" />}
                 label="Novo cliente"
                 desc="Cadastrar destinatário"
               />
-              <QuickLink
+              <DashboardQuickLink
                 to="/notas"
                 icon={<Package className="size-4" />}
                 label="NF-e de mercadoria"
@@ -395,7 +352,7 @@ function DashboardPage() {
               </Link>
             </div>
           </div>
-          <RecentTable rows={metrics.recentItems} />
+          <DashboardRecentTable rows={metrics.recentItems} />
           <NotesPager
             page={metrics.page}
             pageSize={metrics.pageSize}
@@ -408,211 +365,3 @@ function DashboardPage() {
   );
 }
 
-function StatCard({
-  label,
-  value,
-  icon,
-  tone,
-}: {
-  label: string;
-  value: string;
-  icon: React.ReactNode;
-  tone: "primary" | "success" | "warning" | "destructive";
-}) {
-  const toneColor: Record<string, string> = {
-    primary: "var(--primary)",
-    success: "var(--success)",
-    warning: "var(--warning)",
-    destructive: "var(--destructive)",
-  };
-  return (
-    <div className="rounded-xl border border-border bg-card p-5">
-      <div className="flex items-start justify-between">
-        <div>
-          <div className="text-xs tracking-wide text-muted-foreground uppercase">
-            {label}
-          </div>
-          <div className="mt-2 text-2xl font-semibold tracking-tight">{value}</div>
-        </div>
-        <div
-          className="grid size-10 place-items-center rounded-lg"
-          style={{
-            background: `color-mix(in oklch, ${toneColor[tone]} 12%, transparent)`,
-            color: toneColor[tone],
-          }}
-        >
-          {icon}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function BarChart({ data, labels }: { data: number[]; labels: string[] }) {
-  const max = Math.max(...data, 1);
-  const compact = data.length > 14;
-  return (
-    <div className="flex h-52 items-end justify-between gap-1 overflow-x-auto">
-      {data.map((v, i) => (
-        <div key={i} className="flex h-full min-w-4 flex-1 flex-col items-center gap-2">
-          <div className="flex w-full flex-1 items-end justify-center">
-            <div
-              className="w-full max-w-10 rounded-t-md bg-gradient-to-t from-primary to-[oklch(0.6_0.14_215)] transition-all hover:opacity-80"
-              style={{ height: `${(v / max) * 100}%`, minHeight: v > 0 ? 4 : 0 }}
-              title={`${labels[i] ?? ""}: ${v} notas`}
-            />
-          </div>
-          <div className="text-[10px] text-muted-foreground">
-            {compact && i % 4 !== 0 ? "" : (labels[i] ?? "")}
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function QuickLink({
-  to,
-  icon,
-  label,
-  desc,
-}: {
-  to: string;
-  icon: React.ReactNode;
-  label: string;
-  desc: string;
-}) {
-  return (
-    <Link
-      to={to}
-      className="group flex w-full items-center gap-3 rounded-lg p-3 text-left transition-colors hover:bg-secondary"
-    >
-      <div className="grid size-9 place-items-center rounded-md bg-secondary text-primary group-hover:bg-background">
-        {icon}
-      </div>
-      <div className="flex-1">
-        <div className="text-sm font-medium">{label}</div>
-        <div className="text-xs text-muted-foreground">{desc}</div>
-      </div>
-      <ChevronRight className="size-4 text-muted-foreground" />
-    </Link>
-  );
-}
-
-function NotesPager({
-  page,
-  pageSize,
-  total,
-  onPage,
-}: {
-  page: number;
-  pageSize: number;
-  total: number;
-  onPage: (page: number) => void;
-}) {
-  const totalPages = Math.max(1, Math.ceil(total / pageSize));
-  if (total <= pageSize) return null;
-  return (
-    <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border px-6 py-3">
-      <p className="text-xs text-muted-foreground">
-        Página {page} de {totalPages}
-      </p>
-      <div className="flex items-center gap-2">
-        <button
-          type="button"
-          disabled={page <= 1}
-          onClick={() => onPage(page - 1)}
-          className="inline-flex h-8 items-center gap-1 rounded-md border border-border px-3 text-xs font-medium disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          <ChevronLeft className="size-3.5" />
-          Anterior
-        </button>
-        <button
-          type="button"
-          disabled={page >= totalPages}
-          onClick={() => onPage(page + 1)}
-          className="inline-flex h-8 items-center gap-1 rounded-md border border-border px-3 text-xs font-medium disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          Próxima
-          <ChevronRight className="size-3.5" />
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function RecentTable({ rows }: { rows: DashboardRecentItem[] }) {
-  if (rows.length === 0) {
-    return (
-      <p className="px-6 py-8 text-sm text-muted-foreground">
-        Nenhuma nota neste filtro.
-      </p>
-    );
-  }
-  return (
-    <div className="overflow-x-auto">
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="text-left text-xs tracking-wide text-muted-foreground uppercase">
-            <th className="px-6 py-3 font-medium">Nº</th>
-            <th className="px-6 py-3 font-medium">Tipo</th>
-            <th className="px-6 py-3 font-medium">Cliente</th>
-            <th className="px-6 py-3 font-medium">Data</th>
-            <th className="px-6 py-3 font-medium">Valor</th>
-            <th className="px-6 py-3 font-medium">Status</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((n) => (
-            <tr key={n.id} className="border-t border-border hover:bg-secondary/50">
-              <td className="px-6 py-3 font-mono text-xs">{n.numberLabel}</td>
-              <td className="px-6 py-3 text-xs text-muted-foreground">
-                {n.kind === "nfse" ? "NFS-e" : "NF-e"}
-              </td>
-              <td className="px-6 py-3">{n.customerName}</td>
-              <td className="px-6 py-3 text-muted-foreground">
-                {formatDateTime(n.issuedAt ?? n.createdAt)}
-              </td>
-              <td className="px-6 py-3 font-medium">{formatCents(n.totalCents)}</td>
-              <td className="px-6 py-3">
-                <StatusBadge status={n.status} />
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
-function StatusBadge({ status }: { status: InvoiceStatus }) {
-  const map = {
-    authorized: {
-      color: "var(--success)",
-      icon: <CheckCircle2 className="size-3" />,
-    },
-    pending: { color: "var(--warning)", icon: <Clock className="size-3" /> },
-    draft: { color: "var(--muted-foreground)", icon: <Clock className="size-3" /> },
-    rejected: {
-      color: "var(--destructive)",
-      icon: <AlertCircle className="size-3" />,
-    },
-    canceled: {
-      color: "var(--muted-foreground)",
-      icon: <AlertCircle className="size-3" />,
-    },
-  } as const;
-  const s = map[status];
-  return (
-    <span
-      className="inline-flex items-center gap-1.5 rounded-full px-2 py-1 text-xs font-medium"
-      style={{
-        background: `color-mix(in oklch, ${s.color} 14%, transparent)`,
-        color: s.color,
-      }}
-    >
-      {s.icon}
-      {invoiceStatusLabels[status]}
-    </span>
-  );
-}

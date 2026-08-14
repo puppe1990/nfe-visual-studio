@@ -1,105 +1,75 @@
 # AGENTS.md — NFeFácil
 
-Emissor de NF-e online (MVP). Visual em TanStack Start; domínio em Turso/libSQL com TDD.
+Emissor oficial de NFS-e Paulistana (Pref. SP, SOAP 1.1 + mTLS A1) e NF-e 55 (SEFAZ direta). Multi-tenant por `company_members`. Produção: Netlify + Turso HTTP.
 
-## Stack
+## Commands
 
-| Camada | Tecnologia |
-|--------|------------|
-| UI | TanStack Start, React 19, Tailwind |
-| DB | Turso / libSQL (`@libsql/client`) |
-| Domínio | `src/domain/*` + `ServiceResult` |
-| Testes | Vitest + DB file temp |
+```bash
+npm test            # vitest run — domínio, file: SQLite temp
+npm run typecheck
+npm run verify      # format:check + lint + typecheck + test + build
+npm run dev         # precisa TURSO_DATABASE_URL=libsql://… (não file:)
+```
 
-## Estrutura
+Tests must stay F.I.R.S.T. New domain function → test. Bugfix → regression test. Use `createFileDbClient({ url: 'file:…' })` + `migrate()` in a temp dir. Never mock SQL. Never import `src/db/client.ts` in tests (web client rejects `file:`).
+
+## Code style
+
+- Functions: 4–20 lines. Files: under 500 (target 200–300). Split by responsibility.
+- One reason to change per module. Unique greppable names (no `data`, `handler`, `Manager`).
+- Types explicit. No `any` on public surfaces. `ServiceResult<T>` for domain I/O.
+- Early returns. Max 2 control-flow indent levels.
+- Errors include the offending value and expected shape.
+- WHY / provenance comments stay. Do not strip them on refactor.
+- Formatter: Prettier. Do not bikeshed style.
+
+## Layout
 
 ```
 src/
-  db/           # schema.sql, client (createDbClient, migrate)
-  domain/       # companies, customers, products, invoices, tax, xml-*, bootstrap
-  fns/          # createServerFn (nfe-functions.ts) — não usar pasta server/ (import protection)
-  routes/       # / painel, /emitir, /notas, /clientes, /produtos, /configuracoes
-  components/   # AppShell
+  db/           # client.ts = Turso HTTP only; file-client.ts = tests
+  domain/       # rules + adapters. invoices* and service-invoice* are split
+  fns/          # createServerFn only. Do not put handlers in server/
+  routes/       # TanStack file routes
+  components/   # App UI. src/components/ui = shadcn — do not split
+  lib/          # parseNfseSearch, parseDashboardSearch, money, iso-date
 ```
 
-## Rotas (UI ligada ao domínio)
+| Symbol | File |
+|--------|------|
+| `createInvoiceDraft` | `domain/invoices.ts` (re-exports read/lifecycle/delivery/dashboard) |
+| `getInvoice` / `listInvoices` | `domain/invoice-read.ts` |
+| `transmitInvoice` / `cancelInvoice` | `domain/invoice-lifecycle.ts` |
+| `getDashboardMetrics` | `domain/invoice-dashboard.ts` (merge NF-e + NFS-e, then paginate) |
+| `createServiceInvoiceDraft` / `listServiceInvoices` | `domain/service-invoices.ts` |
+| `transmitServiceInvoice` | `domain/service-invoice-transmit.ts` |
+| `importHistoricServiceInvoices` | `domain/service-invoice-import.ts` |
+| `consultIssuerCnpj` | `domain/service-invoice-consult.ts` |
+| `callNfseSoap` | `domain/nfse-client.ts` |
+| `requireWorkspace` | `fns/auth-workspace.server.ts` (dynamic import only) |
 
-| Rota | Função |
-|------|--------|
-| `/` | Painel com métricas reais |
-| `/emitir` | Rascunho + transmitir (simulado) |
-| `/notas` | Lista, filtros, XML, retransmitir |
-| `/clientes` | CRUD destinatários |
-| `/produtos` | CRUD + import XML |
-| `/configuracoes` | Emitente + série/numeração |
+## Routes
 
-MVP sem login: `ensureWorkspace()` cria empresa demo na 1ª execução.
+| Path | Role |
+|------|------|
+| `/` | Public landing |
+| `/painel` | Auth dashboard (not `/`) |
+| `/nfse` `/emitir-nfse` | NFS-e list / emit |
+| `/notas` `/emitir` | NF-e 55 list / emit |
+| `/login` `/cadastro` `/configuracoes` | Session + emitente |
 
-## Env
+Auth: cookie session. Client never statically imports `*.server.ts`. After login/cadastro navigate to `/painel`.
 
-```env
-TURSO_DATABASE_URL=file:local-nfe.db
-TURSO_AUTH_TOKEN=
-```
+## Env / deploy
 
-## Comandos
+- App client: `createDbClient` in `src/db/client.ts` (`@libsql/client/web`). Rejects `file:` so Netlify Linux never loads a native SQLite binary.
+- Tests only: `createFileDbClient` in `src/db/file-client.ts`.
+- `OWNER_BOOTSTRAP_*` only if both env vars are set. Never hardcode passwords.
+- Nitro preset `netlify`; publish `dist` (not `dist/client`).
+- NFS-e consult window max 31 days. IM/CCM on company required for Pref SP.
 
-```bash
-npm install
-npm test          # domínio TDD
-npm run dev
-npm run verify    # format + lint + typecheck + test + build
-```
+## Defensive programming (implement these; do not invent others)
 
-## Fases
-
-**Fase 1 (core):**
-- Multi-tenant por `companies`
-- CRUD clientes e produtos
-- Rascunho de NF-e + transmissão via adapter SEFAZ
-- Métricas do painel
-- Export XML simplificado + import produtos via XML
-- Cálculo de impostos por regime (+ ST opcional)
-
-**Fase 2 (fiscal / ops):**
-- Adapter `SefazClient` (`SimulatedSefazClient` default, `FakeSefazClient` em testes)
-- Certificado A1 (upload PFX base64 + senha cifrada MVP)
-- Produção exige A1; homologação não
-- Cancelamento de NF-e autorizada
-- Inutilização de faixa de numeração
-- Envio de e-mail com XML (`InMemoryMailSender` por padrão)
-- Protocolo SEFAZ + chave de acesso na nota
-
-**SEFAZ direto (sem API comercial):**
-- `SEFAZ_MODE=real` ativa `RealSefazClient`
-- Assina XML com A1 (`node-forge` + `xml-crypto`)
-- mTLS SOAP para NFeAutorizacao4 / RetAutorizacao / RecepcaoEvento / Inutilizacao
-- Endpoints por UF em `sefaz-endpoints.ts` (SP + SVRS)
-- `SEFAZ_UF=SP` (default)
-
-```bash
-SEFAZ_MODE=real SEFAZ_UF=SP npm run dev
-```
-
-Cadastre o A1 em **Configurações** antes de transmitir em modo real.
-Homologação SEFAZ exige CNPJ credenciado na UF.
-
-`buildInvoiceXml` gera layout NF-e 4.00 com grupos obrigatórios:
-ide, emit/enderEmit, dest/enderDest, det/prod/imposto (ICMS SN ou ICMS00),
-total/ICMSTot, transp, pag, infAdic + chave de acesso 44 dígitos.
-Em homologação força o xNome do dest exigido pela SEFAZ.
-
-**Validação pré-envio (layout 4.00):**
-- `validateNFeXmlSchema` checa campos obrigatórios/formatos (equiv. XSD prático)
-- Rejeições SEFAZ (`cStat`) mapeadas em `sefaz-cstat.ts` com “o que fazer”
-- Rodada automaticamente em `transmitInvoice` e no `RealSefazClient`
-
-**Ainda não:**
-- Pacote XSD oficial PL multi-arquivo embutido
-- Todos os CSTs/CSOSN e regras de ICMS interestadual/ST completas
-- SMTP real em produção
-- Cobrança mensal
-
-## TDD
-
-Testes em `src/domain/*.test.ts`. Sempre usar `createDbClient({ url: 'file:...' })` + `migrate()` em temp dir — não mockar o SQL.
+- Timeouts 60s: Pref SP SOAP (`nfseSoapPostHttps`) and SEFAZ SOAP (`sefaz-soap`).
+- Fallback: if primary `NFSE_SP_ENDPOINT` is unreachable, retry once on `NFSE_SP_FALLBACK`.
+- Inject SOAP `postFn` in tests (named fake), never hit the real Pref/SEFAZ from Vitest.
