@@ -2,6 +2,39 @@
 @source "../src";
 @import "tw-animate-css";
 
+.landing {
+  --landing-ink: oklch(0.22 0.03 250);
+  --landing-mute: oklch(0.48 0.03 250);
+  --landing-rule: oklch(0.88 0.02 240);
+  --landing-paper: oklch(0.985 0.008 90);
+  --landing-sheet: oklch(0.995 0.006 95);
+  font-family: Figtree, ui-sans-serif, system-ui, sans-serif;
+  background-color: var(--landing-paper);
+  background-image:
+    linear-gradient(180deg, oklch(0.97 0.02 230 / 0.55), transparent 28rem),
+    repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 27px,
+      oklch(0.42 0.13 235 / 0.045) 28px
+    );
+  color: var(--landing-ink);
+}
+
+.landing-display {
+  font-family: Fraunces, ui-serif, Georgia, serif;
+  font-optical-sizing: auto;
+}
+
+.landing-grain {
+  pointer-events: none;
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  opacity: 0.18;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
 @custom-variant dark (&:is(.dark *));
 
 /*

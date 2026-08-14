@@ -30,7 +30,7 @@ function RegisterPage() {
       setError(result.error.message);
       return;
     }
-    await navigate({ to: "/" });
+    await navigate({ to: "/painel" });
   }
 
   return (
@@ -40,7 +40,10 @@ function RegisterPage() {
         className="w-full max-w-sm space-y-4 rounded-xl border border-border bg-card p-6"
       >
         <div>
-          <h1 className="text-xl font-semibold">Nova conta</h1>
+          <Link to="/" className="text-xs font-medium text-primary hover:underline">
+            ← NFeFácil
+          </Link>
+          <h1 className="mt-2 text-xl font-semibold">Nova conta</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             Cria um workspace isolado para o seu CNPJ.
           </p>

@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 
 const navItems = [
-  { to: "/", label: "Painel", icon: LayoutDashboard },
+  { to: "/painel", label: "Painel", icon: LayoutDashboard },
   { to: "/emitir-nfse", label: "Emitir NFS-e", icon: Plus },
   { to: "/nfse", label: "NFS-e emitidas", icon: FileCheck },
   { to: "/emitir", label: "Emitir NF-e", icon: FileText },
@@ -60,8 +60,8 @@ export function AppShell({
           <nav className="flex-1 space-y-1 p-3">
             {navItems.map(({ to, label, icon: Icon }) => {
               const active =
-                to === "/"
-                  ? pathname === "/"
+                to === "/painel"
+                  ? pathname === "/painel"
                   : pathname === to || pathname.startsWith(`${to}/`);
               return (
                 <Link

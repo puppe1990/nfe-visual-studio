@@ -24,6 +24,7 @@ dist-ssr
 # Wrangler / Cloudflare
 .wrangler/
 .dev.vars
+.netlify
 
 # Editor directories and files
 .vscode/*

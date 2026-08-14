@@ -18,6 +18,7 @@ import { Route as EmitirNfseRouteImport } from './routes/emitir-nfse'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as NfseRouteImport } from './routes/nfse'
 import { Route as NotasRouteImport } from './routes/notas'
+import { Route as PainelRouteImport } from './routes/painel'
 import { Route as ProdutosRouteImport } from './routes/produtos'
 
 const IndexRoute = IndexRouteImport.update({
@@ -65,6 +66,11 @@ const NotasRoute = NotasRouteImport.update({
   path: '/notas',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PainelRoute = PainelRouteImport.update({
+  id: '/painel',
+  path: '/painel',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ProdutosRoute = ProdutosRouteImport.update({
   id: '/produtos',
   path: '/produtos',
@@ -81,6 +87,7 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/nfse': typeof NfseRoute
   '/notas': typeof NotasRoute
+  '/painel': typeof PainelRoute
   '/produtos': typeof ProdutosRoute
 }
 export interface FileRoutesByTo {
@@ -93,6 +100,7 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/nfse': typeof NfseRoute
   '/notas': typeof NotasRoute
+  '/painel': typeof PainelRoute
   '/produtos': typeof ProdutosRoute
 }
 export interface FileRoutesById {
@@ -106,6 +114,7 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/nfse': typeof NfseRoute
   '/notas': typeof NotasRoute
+  '/painel': typeof PainelRoute
   '/produtos': typeof ProdutosRoute
 }
 export interface FileRouteTypes {
@@ -120,6 +129,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/nfse'
     | '/notas'
+    | '/painel'
     | '/produtos'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -132,6 +142,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/nfse'
     | '/notas'
+    | '/painel'
     | '/produtos'
   id:
     | '__root__'
@@ -144,6 +155,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/nfse'
     | '/notas'
+    | '/painel'
     | '/produtos'
   fileRoutesById: FileRoutesById
 }
@@ -157,6 +169,7 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   NfseRoute: typeof NfseRoute
   NotasRoute: typeof NotasRoute
+  PainelRoute: typeof PainelRoute
   ProdutosRoute: typeof ProdutosRoute
 }
 
@@ -225,6 +238,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof NotasRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/painel': {
+      id: '/painel'
+      path: '/painel'
+      fullPath: '/painel'
+      preLoaderRoute: typeof PainelRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/produtos': {
       id: '/produtos'
       path: '/produtos'
@@ -245,6 +265,7 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   NfseRoute: NfseRoute,
   NotasRoute: NotasRoute,
+  PainelRoute: PainelRoute,
   ProdutosRoute: ProdutosRoute,
 }
 export const routeTree = rootRouteImport

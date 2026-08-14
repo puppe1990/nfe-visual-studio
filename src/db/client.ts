@@ -1,4 +1,5 @@
-import { createClient } from '@libsql/client'
+import { createClient as createNodeClient } from '@libsql/client'
+import { createClient as createWebClient } from '@libsql/client/web'
 import type { Client } from '@libsql/client'
 import schemaSql from './schema.sql?raw'
 
@@ -32,6 +33,11 @@ export function createDbClient(options?: {
     process.env.TURSO_AUTH_TOKEN ??
     process.env.LIBSQL_AUTH_TOKEN
 
+  const remote =
+    import.meta.env.PROD ||
+    url.startsWith('libsql://') ||
+    url.startsWith('https://')
+  const createClient = remote ? createWebClient : createNodeClient
   return createClient({
     url,
     authToken: authToken || undefined,

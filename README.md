@@ -75,7 +75,8 @@ Para NFS-e de São Paulo o emitente precisa de CCM/IM e A1 já habilitado na Pre
 
 | Rota | Função |
 |------|--------|
-| `/` | Painel de emissão |
+| `/` | Landing pública |
+| `/painel` | Painel de emissão |
 | `/emitir-nfse` | Nova NFS-e |
 | `/nfse` | Histórico de NFS-e |
 | `/emitir` | Nova NF-e 55 |
