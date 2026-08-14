@@ -4,7 +4,8 @@ import { tmpdir } from "node:os";
 
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import { createDbClient, migrate } from "../db/client";
+import { migrate } from "../db/client";
+import { createFileDbClient as createDbClient } from "../db/file-client";
 import type { LibsqlClient } from "../db/client";
 import {
   getWorkspaceForUser,

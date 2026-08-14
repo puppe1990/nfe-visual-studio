@@ -1,14 +1,13 @@
-import { createClient as createNodeClient } from '@libsql/client'
-import { createClient as createWebClient } from '@libsql/client/web'
+import { createClient } from '@libsql/client/web'
 import type { Client } from '@libsql/client'
 import schemaSql from './schema.sql?raw'
 
 export type LibsqlClient = Client
 
 /**
- * Create a Turso/libSQL client.
- * - Production/dev: TURSO_DATABASE_URL (+ optional TURSO_AUTH_TOKEN)
- * - Tests: pass file: URL via options
+ * HTTP client for Turso / libSQL.
+ * Local file: databases belong in `createFileDbClient` (tests only) so the
+ * Netlify function never ships a native SQLite binary.
  */
 export function createDbClient(options?: {
   url?: string
@@ -17,14 +16,17 @@ export function createDbClient(options?: {
   const url =
     options?.url ??
     process.env.TURSO_DATABASE_URL ??
-    process.env.LIBSQL_URL ??
-    (process.env.NODE_ENV === 'production'
-      ? undefined
-      : 'file:local-nfe.db')
+    process.env.LIBSQL_URL
 
   if (!url) {
     throw new Error(
       'TURSO_DATABASE_URL is not configured. Set it in the environment.',
+    )
+  }
+
+  if (url.startsWith('file:')) {
+    throw new Error(
+      'file: URLs are not supported in the production client. Use createFileDbClient in tests.',
     )
   }
 
@@ -33,11 +35,6 @@ export function createDbClient(options?: {
     process.env.TURSO_AUTH_TOKEN ??
     process.env.LIBSQL_AUTH_TOKEN
 
-  const remote =
-    import.meta.env.PROD ||
-    url.startsWith('libsql://') ||
-    url.startsWith('https://')
-  const createClient = remote ? createWebClient : createNodeClient
   return createClient({
     url,
     authToken: authToken || undefined,
