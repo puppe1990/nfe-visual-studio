@@ -11,6 +11,12 @@ import {
 import { getCurrentUserFn } from "../fns/auth-functions";
 import { useEffect, type ReactNode } from "react";
 
+import {
+  OG_IMAGE_URL,
+  SITE_DESCRIPTION,
+  SITE_TITLE,
+  SITE_URL,
+} from "../lib/site";
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 
@@ -87,14 +93,32 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "NFeFácil — Emissão de Nota Fiscal Eletrônica" },
-      { name: "description", content: "Sistema completo para emissão, gestão e acompanhamento de Notas Fiscais Eletrônicas (NF-e)." },
+      { title: SITE_TITLE },
+      { name: "description", content: SITE_DESCRIPTION },
       { name: "author", content: "NFeFácil" },
-      { property: "og:title", content: "NFeFácil — Emissão de NF-e" },
-      { property: "og:description", content: "Emita e gerencie suas Notas Fiscais Eletrônicas com agilidade." },
+      { property: "og:site_name", content: "NFeFácil" },
       { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary" },
-      { name: "twitter:site", content: "@Lovable" },
+      { property: "og:locale", content: "pt_BR" },
+      { property: "og:url", content: SITE_URL },
+      { property: "og:title", content: SITE_TITLE },
+      { property: "og:description", content: SITE_DESCRIPTION },
+      { property: "og:image", content: OG_IMAGE_URL },
+      { property: "og:image:secure_url", content: OG_IMAGE_URL },
+      { property: "og:image:type", content: "image/png" },
+      { property: "og:image:width", content: "1200" },
+      { property: "og:image:height", content: "630" },
+      {
+        property: "og:image:alt",
+        content: "NFeFácil — A nota sai daqui. Sem atravessador.",
+      },
+      { name: "twitter:card", content: "summary_large_image" },
+      { name: "twitter:title", content: SITE_TITLE },
+      { name: "twitter:description", content: SITE_DESCRIPTION },
+      { name: "twitter:image", content: OG_IMAGE_URL },
+      {
+        name: "twitter:image:alt",
+        content: "NFeFácil — A nota sai daqui. Sem atravessador.",
+      },
       { name: "theme-color", content: "#005589" },
       { name: "mobile-web-app-capable", content: "yes" },
       { name: "apple-mobile-web-app-capable", content: "yes" },
