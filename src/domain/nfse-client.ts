@@ -1,21 +1,15 @@
 import https from "node:https";
 import { URL } from "node:url";
 
-export const NFSE_SP_ENDPOINT =
-  "https://nfews.prefeitura.sp.gov.br/lotenfe.asmx";
-export const NFSE_SP_FALLBACK =
-  "https://nfe.prefeitura.sp.gov.br/ws/lotenfe.asmx";
+export const NFSE_SP_ENDPOINT = "https://nfews.prefeitura.sp.gov.br/lotenfe.asmx";
+export const NFSE_SP_FALLBACK = "https://nfe.prefeitura.sp.gov.br/ws/lotenfe.asmx";
 
-export type NfseSoapMethod =
-  | "EnvioRPS"
-  | "ConsultaCNPJ"
-  | "ConsultaNFeEmitidas";
+export type NfseSoapMethod = "EnvioRPS" | "ConsultaCNPJ" | "ConsultaNFeEmitidas";
 
 const SOAP_ACTION: Record<NfseSoapMethod, string> = {
   EnvioRPS: "http://www.prefeitura.sp.gov.br/nfe/ws/envioRPS",
   ConsultaCNPJ: "http://www.prefeitura.sp.gov.br/nfe/ws/consultaCNPJ",
-  ConsultaNFeEmitidas:
-    "http://www.prefeitura.sp.gov.br/nfe/ws/consultaNFeEmitidas",
+  ConsultaNFeEmitidas: "http://www.prefeitura.sp.gov.br/nfe/ws/consultaNFeEmitidas",
 };
 
 function esc(value: string): string {
@@ -43,9 +37,7 @@ export function buildNfseSoap(
 }
 
 export function extractRetornoXml(soapBody: string): string {
-  const tagged = soapBody.match(
-    /<RetornoXML[^>]*>([\s\S]*?)<\/RetornoXML>/i,
-  );
+  const tagged = soapBody.match(/<RetornoXML[^>]*>([\s\S]*?)<\/RetornoXML>/i);
   if (!tagged) return soapBody;
   return tagged[1]
     .replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, "$1")
@@ -121,19 +113,30 @@ export async function callNfseSoap(options: {
   endpoint?: string;
   postFn?: NfsePostFn;
 }): Promise<{ statusCode: number; soapBody: string; retornoXml: string }> {
-  const url = options.endpoint ?? NFSE_SP_ENDPOINT;
+  const urls = options.endpoint ? [options.endpoint] : [NFSE_SP_ENDPOINT, NFSE_SP_FALLBACK];
   const body = buildNfseSoap(options.method, options.mensagemXml);
   const post = options.postFn ?? nfseSoapPostHttps;
-  const response = await post({
-    url,
-    body,
-    soapAction: SOAP_ACTION[options.method],
-    pfx: Buffer.from(options.pfxBase64.replace(/\s/g, ""), "base64"),
-    passphrase: options.password,
-  });
-  return {
-    statusCode: response.statusCode,
-    soapBody: response.body,
-    retornoXml: extractRetornoXml(response.body),
-  };
+  const pfx = Buffer.from(options.pfxBase64.replace(/\s/g, ""), "base64");
+  let lastError: unknown;
+  for (const url of urls) {
+    try {
+      const response = await post({
+        url,
+        body,
+        soapAction: SOAP_ACTION[options.method],
+        pfx,
+        passphrase: options.password,
+      });
+      return {
+        statusCode: response.statusCode,
+        soapBody: response.body,
+        retornoXml: extractRetornoXml(response.body),
+      };
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  throw lastError instanceof Error
+    ? lastError
+    : new Error("Falha ao falar com a Prefeitura de São Paulo");
 }

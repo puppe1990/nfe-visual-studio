@@ -12,10 +12,7 @@ import * as companies from "./companies";
 import * as customers from "./customers";
 import { generateTestPfx } from "./sefaz-sign";
 import * as invoices from "./invoices";
-import {
-  createServiceInvoiceDraft,
-  transmitServiceInvoice,
-} from "./service-invoices";
+import { createServiceInvoiceDraft, transmitServiceInvoice } from "./service-invoices";
 
 const VALID_CNPJ = "04252011000110";
 const AVANT_CNPJ = "25238319000180";
@@ -85,18 +82,13 @@ describe("NFS-e service invoices", () => {
     expect(draft.data.invoice.rpsNumber).toBe(1);
     expect(draft.data.invoice.serviceCode).toBe("01880");
 
-    const tx = await transmitServiceInvoice(
-      client,
-      companyId,
-      draft.data.invoice.id,
-      {
-        issuedOn: "2026-08-14",
-        postFn: async () => ({
-          statusCode: 200,
-          body: `<soap:Envelope><soap:Body><EnvioRPSResponse xmlns="http://www.prefeitura.sp.gov.br/nfe"><RetornoXML>&lt;RetornoEnvioRPS&gt;&lt;Cabecalho Versao="1"&gt;&lt;Sucesso&gt;true&lt;/Sucesso&gt;&lt;/Cabecalho&gt;&lt;ChaveNFeRPS&gt;&lt;ChaveNFe&gt;&lt;InscricaoPrestador&gt;62105809&lt;/InscricaoPrestador&gt;&lt;NumeroNFe&gt;72&lt;/NumeroNFe&gt;&lt;CodigoVerificacao&gt;NBIK-9INN&lt;/CodigoVerificacao&gt;&lt;/ChaveNFe&gt;&lt;/ChaveNFeRPS&gt;&lt;/RetornoEnvioRPS&gt;</RetornoXML></EnvioRPSResponse></soap:Body></soap:Envelope>`,
-        }),
-      },
-    );
+    const tx = await transmitServiceInvoice(client, companyId, draft.data.invoice.id, {
+      issuedOn: "2026-08-14",
+      postFn: async () => ({
+        statusCode: 200,
+        body: `<soap:Envelope><soap:Body><EnvioRPSResponse xmlns="http://www.prefeitura.sp.gov.br/nfe"><RetornoXML>&lt;RetornoEnvioRPS&gt;&lt;Cabecalho Versao="1"&gt;&lt;Sucesso&gt;true&lt;/Sucesso&gt;&lt;/Cabecalho&gt;&lt;ChaveNFeRPS&gt;&lt;ChaveNFe&gt;&lt;InscricaoPrestador&gt;62105809&lt;/InscricaoPrestador&gt;&lt;NumeroNFe&gt;72&lt;/NumeroNFe&gt;&lt;CodigoVerificacao&gt;NBIK-9INN&lt;/CodigoVerificacao&gt;&lt;/ChaveNFe&gt;&lt;/ChaveNFeRPS&gt;&lt;/RetornoEnvioRPS&gt;</RetornoXML></EnvioRPSResponse></soap:Body></soap:Envelope>`,
+      }),
+    });
     expect(tx.ok).toBe(true);
     if (!tx.ok) return;
     expect(tx.data.invoice.status).toBe("authorized");
@@ -108,8 +100,27 @@ describe("NFS-e service invoices", () => {
     if (!metrics.ok) return;
     expect(metrics.data.authorizedCount).toBe(1);
     expect(metrics.data.revenueCents).toBe(150_000);
-    expect(metrics.data.recentItems.some((item) => item.kind === "nfse")).toBe(
-      true,
-    );
+    expect(metrics.data.recentItems.some((item) => item.kind === "nfse")).toBe(true);
+  });
+
+  it("marks the draft rejected when Pref SP SOAP throws, so it is not stuck", async () => {
+    const draft = await createServiceInvoiceDraft(client, companyId, {
+      customerId,
+      discrimination: "Servicos de assistencia tecnica no site institucional.",
+      serviceCents: 200_000,
+      serviceCode: "01880",
+    });
+    expect(draft.ok).toBe(true);
+    if (!draft.ok) return;
+
+    const tx = await transmitServiceInvoice(client, companyId, draft.data.invoice.id, {
+      postFn: async () => {
+        throw new Error("Timeout na chamada da Prefeitura de São Paulo");
+      },
+    });
+    expect(tx.ok).toBe(true);
+    if (!tx.ok) return;
+    expect(tx.data.invoice.status).toBe("rejected");
+    expect(tx.data.invoice.rejectionReason).toContain("Prefeitura de São Paulo");
   });
 });

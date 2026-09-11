@@ -209,7 +209,7 @@ export type DashboardFilter = {
   pageSize?: number
 }
 
-export type DashboardChartBucket = 'day' | 'week' | 'month'
+export type DashboardChartBucket = 'day' | 'week' | 'month' | 'year'
 
 export type DashboardMetrics = {
   authorizedCount: number

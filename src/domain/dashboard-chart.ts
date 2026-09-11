@@ -1,4 +1,4 @@
-export type ChartBucket = "day" | "week" | "month";
+export type ChartBucket = "day" | "week" | "month" | "year";
 
 export type ChartPoint = {
   day: string;
@@ -23,10 +23,14 @@ export function chooseChartBucket(fromUnix: number, toUnix: number): ChartBucket
   const days = Math.round((toUnix - fromUnix) / 86400) + 1;
   if (days <= 45) return "day";
   if (days <= 184) return "week";
-  return "month";
+  if (days <= 548) return "month";
+  return "year";
 }
 
 export function bucketKey(date: Date, bucket: ChartBucket): string {
+  if (bucket === "year") {
+    return `${date.getFullYear()}-01-01`;
+  }
   if (bucket === "month") {
     return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-01`;
   }
@@ -37,6 +41,9 @@ export function bucketKey(date: Date, bucket: ChartBucket): string {
 }
 
 function nextBucket(date: Date, bucket: ChartBucket): Date {
+  if (bucket === "year") {
+    return new Date(date.getFullYear() + 1, 0, 1);
+  }
   if (bucket === "month") {
     return new Date(date.getFullYear(), date.getMonth() + 1, 1);
   }
@@ -61,11 +68,13 @@ export function buildChartSeries(
   }
 
   let cursor =
-    bucket === "month"
-      ? new Date(from.getFullYear(), from.getMonth(), 1)
-      : bucket === "week"
-        ? mondayOf(from)
-        : from;
+    bucket === "year"
+      ? new Date(from.getFullYear(), 0, 1)
+      : bucket === "month"
+        ? new Date(from.getFullYear(), from.getMonth(), 1)
+        : bucket === "week"
+          ? mondayOf(from)
+          : from;
 
   const series: ChartPoint[] = [];
   while (cursor.getTime() <= to.getTime()) {
@@ -92,14 +101,17 @@ const MONTH_LABELS = [
 ];
 
 export function chartAxisLabel(day: string, bucket: ChartBucket): string {
-  const [, month, date] = day.split("-");
+  const [year, month, date] = day.split("-");
+  if (bucket === "year") return year;
   if (bucket === "month") {
-    return MONTH_LABELS[Number(month) - 1] ?? month;
+    const name = MONTH_LABELS[Number(month) - 1] ?? month;
+    return `${name}/${year.slice(2)}`;
   }
   return `${date}/${month}`;
 }
 
 export function chartUnitLabel(bucket: ChartBucket): string {
+  if (bucket === "year") return "por ano";
   if (bucket === "month") return "por mês";
   if (bucket === "week") return "por semana";
   return "por dia";
