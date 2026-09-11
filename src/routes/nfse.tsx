@@ -21,6 +21,7 @@ import {
   importHistoricServiceInvoicesFn,
   listCustomersFn,
   listServiceInvoicesFn,
+  transmitServiceInvoiceFn,
 } from "../fns/nfe-functions";
 
 export const Route = createFileRoute("/nfse")({
@@ -60,11 +61,7 @@ export const Route = createFileRoute("/nfse")({
       sort: list.ok ? list.data.sort : "issuedAt",
       dir: list.ok ? list.data.dir : "desc",
       customers: customers.ok ? customers.data.customers : [],
-      error: !workspace.ok
-        ? workspace.error.message
-        : !list.ok
-          ? list.error.message
-          : null,
+      error: !workspace.ok ? workspace.error.message : !list.ok ? list.error.message : null,
     };
   },
   component: NfseListPage,
@@ -77,6 +74,7 @@ function NfseListPage() {
   const router = useRouter();
   const [importing, setImporting] = useState(false);
   const [importMsg, setImportMsg] = useState<string | null>(null);
+  const [transmittingId, setTransmittingId] = useState<number | null>(null);
 
   function patchSearch(next: Partial<NfseSearch>) {
     void navigate({
@@ -107,16 +105,45 @@ function NfseListPage() {
   async function importHistoric() {
     setImporting(true);
     setImportMsg(null);
-    const result = await importHistoricServiceInvoicesFn();
-    setImporting(false);
-    if (!result.ok) {
-      setImportMsg(result.error.message);
-      return;
+    try {
+      const result = await importHistoricServiceInvoicesFn();
+      if (!result.ok) {
+        setImportMsg(result.error.message);
+        return;
+      }
+      setImportMsg(
+        `Importadas ${result.data.imported} · já existentes ${result.data.skipped} · lidas ${result.data.fetched}`,
+      );
+      await router.invalidate();
+    } catch {
+      setImportMsg("A Prefeitura não respondeu a tempo. Tente buscar de novo.");
+    } finally {
+      setImporting(false);
     }
-    setImportMsg(
-      `Importadas ${result.data.imported} · já existentes ${result.data.skipped} · lidas ${result.data.fetched}`,
-    );
-    await router.invalidate();
+  }
+
+  async function retransmit(invoiceId: number) {
+    setTransmittingId(invoiceId);
+    setImportMsg(null);
+    try {
+      const result = await transmitServiceInvoiceFn({ data: { invoiceId } });
+      if (!result.ok) {
+        setImportMsg(result.error.message);
+        return;
+      }
+      if (result.data.invoice.status === "authorized") {
+        setImportMsg(`NFS-e ${result.data.invoice.nfseNumber} autorizada.`);
+      } else {
+        setImportMsg(result.data.invoice.rejectionReason ?? "Prefeitura rejeitou a NFS-e");
+      }
+      await router.invalidate();
+    } catch {
+      setImportMsg(
+        "A Prefeitura não respondeu a tempo. O rascunho continua na lista — toque em Transmitir de novo.",
+      );
+    } finally {
+      setTransmittingId(null);
+    }
   }
 
   const fromLabel =
@@ -155,13 +182,7 @@ function NfseListPage() {
                   : search.from &&
                       search.to &&
                       search.from ===
-                        isoDate(
-                          new Date(
-                            new Date().getFullYear(),
-                            new Date().getMonth(),
-                            1,
-                          ),
-                        ) &&
+                        isoDate(new Date(new Date().getFullYear(), new Date().getMonth(), 1)) &&
                       search.to === isoDate(new Date())
                     ? "month"
                     : search.from === `${new Date().getFullYear()}-01-01` &&
@@ -209,9 +230,7 @@ function NfseListPage() {
               type="date"
               className="mt-1.5 h-10 w-full rounded-md border border-border bg-background px-3"
               value={search.from ?? ""}
-              onChange={(e) =>
-                patchSearch({ from: e.target.value || undefined })
-              }
+              onChange={(e) => patchSearch({ from: e.target.value || undefined })}
             />
           </label>
           <label className="block text-sm">
@@ -230,10 +249,7 @@ function NfseListPage() {
               value={search.status ?? "all"}
               onChange={(e) =>
                 patchSearch({
-                  status:
-                    e.target.value === "all"
-                      ? undefined
-                      : (e.target.value as InvoiceStatus),
+                  status: e.target.value === "all" ? undefined : (e.target.value as InvoiceStatus),
                 })
               }
             >
@@ -251,9 +267,7 @@ function NfseListPage() {
               value={search.customerId ?? ""}
               onChange={(e) =>
                 patchSearch({
-                  customerId: e.target.value
-                    ? Number(e.target.value)
-                    : undefined,
+                  customerId: e.target.value ? Number(e.target.value) : undefined,
                 })
               }
             >
@@ -338,31 +352,22 @@ function NfseListPage() {
                 ) : (
                   data.invoices.map((row: ServiceInvoice) => {
                     const printUrl =
-                      row.status === "authorized" &&
-                      row.nfseNumber &&
-                      row.verificationCode
+                      row.status === "authorized" && row.nfseNumber && row.verificationCode
                         ? buildNfsePrintUrl({
-                            municipalRegistration:
-                              data.company?.municipalRegistration ?? "",
+                            municipalRegistration: data.company?.municipalRegistration ?? "",
                             nfseNumber: row.nfseNumber,
                             verificationCode: row.verificationCode,
                           })
                         : null;
                     return (
                       <tr key={row.id} className="border-t border-border">
-                        <td className="px-4 py-2 font-mono">
-                          {row.nfseNumber ?? "—"}
-                        </td>
+                        <td className="px-4 py-2 font-mono">{row.nfseNumber ?? "—"}</td>
                         <td className="px-4 py-2 font-mono text-xs">
                           {row.rpsSeries}/{row.rpsNumber}
                         </td>
                         <td className="px-4 py-2">{row.customerName}</td>
-                        <td className="px-4 py-2">
-                          {invoiceStatusLabels[row.status]}
-                        </td>
-                        <td className="px-4 py-2 text-right">
-                          {formatCents(row.totalCents)}
-                        </td>
+                        <td className="px-4 py-2">{invoiceStatusLabels[row.status]}</td>
+                        <td className="px-4 py-2 text-right">{formatCents(row.totalCents)}</td>
                         <td className="px-4 py-2 font-mono text-xs">
                           {row.verificationCode ?? "—"}
                         </td>
@@ -379,6 +384,15 @@ function NfseListPage() {
                             >
                               Ver / imprimir
                             </a>
+                          ) : row.status === "draft" || row.status === "rejected" ? (
+                            <button
+                              type="button"
+                              disabled={transmittingId === row.id}
+                              onClick={() => void retransmit(row.id)}
+                              className="text-primary underline disabled:opacity-60"
+                            >
+                              {transmittingId === row.id ? "Transmitindo…" : "Transmitir"}
+                            </button>
                           ) : (
                             "—"
                           )}
@@ -413,4 +427,3 @@ function NfseListPage() {
     </AppShell>
   );
 }
-

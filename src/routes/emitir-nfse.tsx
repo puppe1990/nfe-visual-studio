@@ -4,10 +4,7 @@ import { useMemo, useState } from "react";
 
 import { AppShell } from "../components/AppShell";
 import { buildNfsePrintUrl } from "../domain/nfse-public-url";
-import {
-  findNfseServiceCode,
-  NFSE_SERVICE_CODES,
-} from "../domain/nfse-service-codes";
+import { findNfseServiceCode, NFSE_SERVICE_CODES } from "../domain/nfse-service-codes";
 import type { Customer } from "../domain/types";
 import { formatCents, parseMoneyToCents } from "../lib/money";
 import {
@@ -20,10 +17,7 @@ import {
 export const Route = createFileRoute("/emitir-nfse")({
   head: () => ({ meta: [{ title: "Emitir NFS-e — NFeFácil" }] }),
   loader: async () => {
-    const [workspace, customers] = await Promise.all([
-      getWorkspaceFn(),
-      listCustomersFn(),
-    ]);
+    const [workspace, customers] = await Promise.all([getWorkspaceFn(), listCustomersFn()]);
     return {
       company: workspace.ok ? workspace.data.company : null,
       customers: customers.ok ? customers.data.customers : [],
@@ -40,16 +34,12 @@ export const Route = createFileRoute("/emitir-nfse")({
 function EmitirNfsePage() {
   const data = Route.useLoaderData();
   const router = useRouter();
-  const avant = data.customers.find((c: Customer) =>
-    c.document.includes("25238319"),
-  );
+  const avant = data.customers.find((c: Customer) => c.document.includes("25238319"));
   const [customerId, setCustomerId] = useState(
     avant ? String(avant.id) : data.customers[0] ? String(data.customers[0].id) : "",
   );
   const [serviceCode, setServiceCode] = useState("01880");
-  const [serviceQuery, setServiceQuery] = useState(
-    "01880 — Assistência técnica",
-  );
+  const [serviceQuery, setServiceQuery] = useState("01880 — Assistência técnica");
   const [value, setValue] = useState("");
   const [discrimination, setDiscrimination] = useState(
     "Servicos de assistencia tecnica no site institucional.",
@@ -66,9 +56,7 @@ function EmitirNfsePage() {
     const q = serviceQuery.trim().toLowerCase();
     if (!q) return NFSE_SERVICE_CODES;
     return NFSE_SERVICE_CODES.filter(
-      (item) =>
-        item.code.includes(q.replace(/\D/g, "")) ||
-        item.label.toLowerCase().includes(q),
+      (item) => item.code.includes(q.replace(/\D/g, "")) || item.label.toLowerCase().includes(q),
     );
   }, [serviceQuery]);
 
@@ -82,45 +70,51 @@ function EmitirNfsePage() {
       setSaving(false);
       return;
     }
-    const draft = await createServiceInvoiceDraftFn({
-      data: {
-        customerId: Number(customerId),
-        discrimination,
-        serviceCents,
-        serviceCode,
-        issRate: 0.05,
-      },
-    });
-    if (!draft.ok) {
-      setError(draft.error.message);
-      setSaving(false);
-      return;
-    }
-    const tx = await transmitServiceInvoiceFn({
-      data: { invoiceId: draft.data.invoice.id },
-    });
-    setSaving(false);
-    if (!tx.ok) {
-      setError(tx.error.message);
-      return;
-    }
-    if (tx.data.invoice.status === "authorized") {
-      setSuccess(
-        `NFS-e ${tx.data.invoice.nfseNumber} autorizada. Código ${tx.data.invoice.verificationCode}`,
+    try {
+      const draft = await createServiceInvoiceDraftFn({
+        data: {
+          customerId: Number(customerId),
+          discrimination,
+          serviceCents,
+          serviceCode,
+          issRate: 0.05,
+        },
+      });
+      if (!draft.ok) {
+        setError(draft.error.message);
+        return;
+      }
+      const tx = await transmitServiceInvoiceFn({
+        data: { invoiceId: draft.data.invoice.id },
+      });
+      if (!tx.ok) {
+        setError(tx.error.message);
+        return;
+      }
+      if (tx.data.invoice.status === "authorized") {
+        setSuccess(
+          `NFS-e ${tx.data.invoice.nfseNumber} autorizada. Código ${tx.data.invoice.verificationCode}`,
+        );
+        const url =
+          tx.data.invoice.nfseNumber && tx.data.invoice.verificationCode
+            ? buildNfsePrintUrl({
+                municipalRegistration: data.company?.municipalRegistration ?? "",
+                nfseNumber: tx.data.invoice.nfseNumber,
+                verificationCode: tx.data.invoice.verificationCode,
+              })
+            : null;
+        setPrintUrl(url);
+      } else {
+        setError(tx.data.invoice.rejectionReason ?? "Prefeitura rejeitou a NFS-e");
+      }
+      await router.invalidate();
+    } catch {
+      setError(
+        "A Prefeitura não respondeu a tempo. Abra NFS-e emitidas e toque em Transmitir no rascunho — o RPS não muda.",
       );
-      const url =
-        tx.data.invoice.nfseNumber && tx.data.invoice.verificationCode
-          ? buildNfsePrintUrl({
-              municipalRegistration: data.company?.municipalRegistration ?? "",
-              nfseNumber: tx.data.invoice.nfseNumber,
-              verificationCode: tx.data.invoice.verificationCode,
-            })
-          : null;
-      setPrintUrl(url);
-    } else {
-      setError(tx.data.invoice.rejectionReason ?? "Prefeitura rejeitou a NFS-e");
+    } finally {
+      setSaving(false);
     }
-    await router.invalidate();
   }
 
   return (
@@ -130,12 +124,10 @@ function EmitirNfsePage() {
           <p className="text-xs tracking-wide text-muted-foreground uppercase">
             Prefeitura de São Paulo
           </p>
-          <h1 className="mt-1 text-2xl font-semibold tracking-tight">
-            Emitir NFS-e
-          </h1>
+          <h1 className="mt-1 text-2xl font-semibold tracking-tight">Emitir NFS-e</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Transmissão oficial via webservice da Nota do Milhão. Gera nota
-            fiscal de serviço de verdade.
+            Transmissão oficial via webservice da Nota do Milhão. Gera nota fiscal de serviço de
+            verdade.
           </p>
         </div>
 
@@ -150,12 +142,7 @@ function EmitirNfsePage() {
             {printUrl ? (
               <>
                 {" "}
-                <a
-                  href={printUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="underline"
-                >
+                <a href={printUrl} target="_blank" rel="noreferrer" className="underline">
                   Ver / imprimir PDF
                 </a>
               </>
@@ -248,8 +235,7 @@ function EmitirNfsePage() {
           </label>
 
           <p className="text-sm text-muted-foreground">
-            ISS 5% estimado: {formatCents(issCents)} · Total da nota:{" "}
-            {formatCents(serviceCents)}
+            ISS 5% estimado: {formatCents(issCents)} · Total da nota: {formatCents(serviceCents)}
           </p>
 
           <button
