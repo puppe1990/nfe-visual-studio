@@ -1,0 +1,61 @@
+version: 1
+frontend:
+  phases:
+    preBuild:
+      commands:
+        - nvm install 22
+        - nvm use 22
+        - node -v
+        - npm ci --cache .npm --prefer-offline
+        - rm -f .env.production
+        - |
+          for key in TURSO_DATABASE_URL TURSO_AUTH_TOKEN SESSION_PASSWORD SEFAZ_MODE SEFAZ_UF OWNER_BOOTSTRAP_EMAIL OWNER_BOOTSTRAP_PASSWORD; do
+            val=$(printenv "$key" || true)
+            if [ -n "$val" ]; then
+              printf '%s=%s\n' "$key" "$val" >> .env.production
+            fi
+          done
+        - test -n "$TURSO_DATABASE_URL" || (echo "Missing TURSO_DATABASE_URL" && exit 1)
+        - test -n "$TURSO_AUTH_TOKEN" || (echo "Missing TURSO_AUTH_TOKEN" && exit 1)
+        - test -n "$SESSION_PASSWORD" || (echo "Missing SESSION_PASSWORD" && exit 1)
+    build:
+      commands:
+        - export NITRO_PRESET=aws-amplify
+        - npm run build
+        - |
+          if [ -f .env.production ]; then
+            mkdir -p .amplify-hosting/compute/default
+            cp .env.production .amplify-hosting/compute/default/.env.production
+            cp .env.production .amplify-hosting/compute/default/.env
+          fi
+          test -s .amplify-hosting/compute/default/.env.production
+        - |
+          node << 'INJECT'
+          const fs = require('node:fs');
+          const p = '.amplify-hosting/compute/default/index.mjs';
+          if (!fs.existsSync(p)) process.exit(0);
+          let t = fs.readFileSync(p, 'utf8');
+          const vars = {
+            TURSO_DATABASE_URL: process.env.TURSO_DATABASE_URL || '',
+            TURSO_AUTH_TOKEN: process.env.TURSO_AUTH_TOKEN || '',
+            SESSION_PASSWORD: process.env.SESSION_PASSWORD || '',
+            SEFAZ_MODE: process.env.SEFAZ_MODE || '',
+            SEFAZ_UF: process.env.SEFAZ_UF || '',
+          };
+          const a = Object.entries(vars).filter(([,v]) => v).map(([k,v]) =>
+            'if(!(' + JSON.stringify(k) + ' in process.env))process.env[' + JSON.stringify(k) + ']=' + JSON.stringify(v) + ';'
+          ).join('');
+          const m = '//#region #nitro-vite-setup\n';
+          const b = '//#region #nitro-env-bootstrap\n' + a + '\n//#endregion\n\n';
+          if (t.includes(m) && !t.includes('#nitro-env-bootstrap')) t = t.replace(m, b + m);
+          fs.writeFileSync(p, t);
+          console.log('Injected env vars:', Object.keys(vars).filter(k => vars[k]).join(', '));
+          INJECT
+  artifacts:
+    baseDirectory: .amplify-hosting
+    files:
+      - "**/*"
+  cache:
+    paths:
+      - .npm/**/*
+      - node_modules/**/*
