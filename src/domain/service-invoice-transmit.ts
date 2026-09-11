@@ -5,11 +5,7 @@ import { getCompany } from "./companies";
 import { getCustomer } from "./customers";
 import { callNfseSoap, type NfsePostFn } from "./nfse-client";
 import { buildRpsSignPayload, signRpsPayload } from "./nfse-rps";
-import {
-  buildPedidoEnvioRpsXml,
-  parseEnvioRpsReturn,
-  signPedidoXml,
-} from "./nfse-xml";
+import { buildPedidoEnvioRpsXml, parseEnvioRpsReturn, signPedidoXml } from "./nfse-xml";
 import { loadA1FromPfx } from "./sefaz-sign";
 import { getServiceInvoice, mapServiceInvoice } from "./service-invoice-row";
 import type { ServiceInvoice, ServiceResult } from "./types";
@@ -23,10 +19,7 @@ export async function transmitServiceInvoice(
 ): Promise<ServiceResult<{ invoice: ServiceInvoice }>> {
   const current = await getServiceInvoice(client, companyId, invoiceId);
   if (!current.ok) return current;
-  if (
-    current.data.invoice.status !== "draft" &&
-    current.data.invoice.status !== "rejected"
-  ) {
+  if (current.data.invoice.status !== "draft" && current.data.invoice.status !== "rejected") {
     return {
       ok: false,
       error: {
@@ -49,11 +42,7 @@ export async function transmitServiceInvoice(
     };
   }
 
-  const customer = await getCustomer(
-    client,
-    companyId,
-    current.data.invoice.customerId,
-  );
+  const customer = await getCustomer(client, companyId, current.data.invoice.customerId);
   if (!customer.ok) return customer;
 
   const material = await getActiveCertificateMaterial(client, companyId);
@@ -106,24 +95,37 @@ export async function transmitServiceInvoice(
       number: customer.data.customer.number,
       complement: customer.data.customer.complement,
       district: customer.data.customer.district,
-      cityIbge: resolveIbgeCityCode(
-        customer.data.customer.city,
-        customer.data.customer.state,
-      ),
+      cityIbge: resolveIbgeCityCode(customer.data.customer.city, customer.data.customer.state),
       state: customer.data.customer.state,
       zip: customer.data.customer.zip,
     },
   });
   const signed = signPedidoXml(unsigned, a1, "PedidoEnvioRPS");
 
-  const soap = await callNfseSoap({
-    method: "EnvioRPS",
-    mensagemXml: signed,
-    pfxBase64: material.data.pfxBase64,
-    password: material.data.password,
-    endpoint: options?.endpoint,
-    postFn: options?.postFn,
-  });
+  let soap;
+  try {
+    soap = await callNfseSoap({
+      method: "EnvioRPS",
+      mensagemXml: signed,
+      pfxBase64: material.data.pfxBase64,
+      password: material.data.password,
+      endpoint: options?.endpoint,
+      postFn: options?.postFn,
+    });
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Falha ao falar com a Prefeitura de São Paulo";
+    await client.execute({
+      sql: `UPDATE service_invoices SET
+              status = 'rejected',
+              xml_content = ?,
+              rejection_reason = ?,
+              updated_at = unixepoch()
+            WHERE id = ? AND company_id = ?`,
+      args: [signed, message, invoiceId, companyId],
+    });
+    return getServiceInvoice(client, companyId, invoiceId);
+  }
   const parsed = parseEnvioRpsReturn(soap.retornoXml);
 
   if (!parsed.ok) {
@@ -135,13 +137,7 @@ export async function transmitServiceInvoice(
               rejection_reason = ?,
               updated_at = unixepoch()
             WHERE id = ? AND company_id = ?`,
-      args: [
-        signed,
-        soap.retornoXml,
-        `${parsed.code}: ${parsed.message}`,
-        invoiceId,
-        companyId,
-      ],
+      args: [signed, soap.retornoXml, `${parsed.code}: ${parsed.message}`, invoiceId, companyId],
     });
     return getServiceInvoice(client, companyId, invoiceId);
   }
