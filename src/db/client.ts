@@ -1,33 +1,41 @@
 import { createClient } from '@libsql/client/web'
+import { createClient as createNativeClient } from '@libsql/client'
 import type { Client } from '@libsql/client'
 import schemaSql from './schema.sql?raw'
 
 export type LibsqlClient = Client
 
+function resolveDatabaseUrl(explicit?: string): string | undefined {
+  if (explicit) return explicit
+  const filePath = process.env.DATABASE_PATH?.trim()
+  if (filePath) {
+    return filePath.startsWith('file:') ? filePath : `file:${filePath}`
+  }
+  return process.env.TURSO_DATABASE_URL ?? process.env.LIBSQL_URL
+}
+
+function isLocalSqliteUrl(url: string): boolean {
+  return url.startsWith('file:') || url === ':memory:'
+}
+
 /**
- * HTTP client for Turso / libSQL.
- * Local file: databases belong in `createFileDbClient` (tests only) so the
- * Netlify function never ships a native SQLite binary.
+ * libSQL client. `DATABASE_PATH` / `file:` uses the native SQLite client.
+ * Remote `libsql://` URLs keep the HTTP web client.
  */
 export function createDbClient(options?: {
   url?: string
   authToken?: string
 }): Client {
-  const url =
-    options?.url ??
-    process.env.TURSO_DATABASE_URL ??
-    process.env.LIBSQL_URL
+  const url = resolveDatabaseUrl(options?.url)
 
   if (!url) {
     throw new Error(
-      'TURSO_DATABASE_URL is not configured. Set it in the environment.',
+      'DATABASE_PATH or TURSO_DATABASE_URL is not configured. Set it in the environment.',
     )
   }
 
-  if (url.startsWith('file:')) {
-    throw new Error(
-      'file: URLs are not supported in the production client. Use createFileDbClient in tests.',
-    )
+  if (isLocalSqliteUrl(url)) {
+    return createNativeClient({ url })
   }
 
   const authToken =
