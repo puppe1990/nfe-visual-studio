@@ -4,6 +4,7 @@ import type { Client } from "@libsql/client";
 
 import { createCompany, getCompany } from "./companies";
 import type { AuthUser, Company, ServiceResult } from "./types";
+import { normalizeWhatsapp } from "./whatsapp";
 
 export function hashPassword(password: string): string {
   const salt = randomBytes(16).toString("hex");
@@ -25,6 +26,18 @@ function mapUser(row: Record<string, unknown>): AuthUser {
     id: Number(row.id),
     email: String(row.email),
     name: String(row.name),
+  };
+}
+
+function requireSignupWhatsapp(raw: string): ServiceResult<{ phone: string }> {
+  const phone = normalizeWhatsapp(raw ?? "");
+  if (phone) return { ok: true, data: { phone } };
+  return {
+    ok: false,
+    error: {
+      code: "VALIDATION",
+      message: `WhatsApp inválido: recebeu "${raw ?? ""}", esperado DDD + número (10 ou 11 dígitos)`,
+    },
   };
 }
 
@@ -64,9 +77,7 @@ export async function getWorkspaceForUser(
       error: { code: "NOT_FOUND", message: "Usuário sem empresa vinculada" },
     };
   }
-  const companyId = Number(
-    (membership.rows[0] as unknown as { company_id: number }).company_id,
-  );
+  const companyId = Number((membership.rows[0] as unknown as { company_id: number }).company_id);
   const company = await getCompany(client, companyId);
   if (!company.ok) return company;
   return { ok: true, data: { user: user.data.user, company: company.data.company } };
@@ -80,11 +91,13 @@ export async function registerTenant(
     password: string;
     companyName: string;
     document: string;
+    whatsapp: string;
   },
 ): Promise<ServiceResult<{ user: AuthUser; company: Company }>> {
   const email = payload.email.trim().toLowerCase();
   const name = payload.name.trim();
   const password = payload.password;
+  const phone = requireSignupWhatsapp(payload.whatsapp);
   if (!email || !email.includes("@")) {
     return { ok: false, error: { code: "VALIDATION", message: "E-mail inválido" } };
   }
@@ -97,6 +110,7 @@ export async function registerTenant(
       error: { code: "VALIDATION", message: "Senha deve ter ao menos 8 caracteres" },
     };
   }
+  if (!phone.ok) return phone;
 
   const existing = await client.execute({
     sql: "SELECT id FROM users WHERE email = ?",
@@ -110,6 +124,7 @@ export async function registerTenant(
     name: payload.companyName,
     document: payload.document,
     email,
+    phone: phone.data.phone,
     taxRegime: "simples",
     sefazEnvironment: "homologation",
   });

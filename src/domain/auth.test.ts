@@ -45,15 +45,32 @@ describe("auth and multi-tenant workspace", () => {
       password: "senha-ana-123",
       companyName: "Ana Serviços",
       document: "11444777000161",
+      whatsapp: "11988887777",
     });
     expect(created.ok).toBe(true);
     if (!created.ok) return;
+    expect(created.data.company.phone).toBe("5511988887777");
 
     const login = await loginUser(client, "ana@example.com", "senha-ana-123");
     expect(login.ok).toBe(true);
     if (!login.ok) return;
     expect(login.data.user.email).toBe("ana@example.com");
     expect(login.data.company.id).toBe(created.data.company.id);
+  });
+
+  it("rejects signup without whatsapp", async () => {
+    const created = await registerTenant(client, {
+      email: "semzap@example.com",
+      name: "Sem Zap",
+      password: "senha-semzap-1",
+      companyName: "Sem Zap Ltda",
+      document: "04252011000110",
+      whatsapp: "",
+    });
+    expect(created.ok).toBe(false);
+    if (created.ok) return;
+    expect(created.error.code).toBe("VALIDATION");
+    expect(created.error.message).toMatch(/WhatsApp/i);
   });
 
   it("isolates companies between users", async () => {
@@ -63,6 +80,7 @@ describe("auth and multi-tenant workspace", () => {
       password: "senha-aaaa-11",
       companyName: "Empresa A",
       document: "04252011000110",
+      whatsapp: "11988880001",
     });
     const b = await registerTenant(client, {
       email: "b@example.com",
@@ -70,6 +88,7 @@ describe("auth and multi-tenant workspace", () => {
       password: "senha-bbbb-22",
       companyName: "Empresa B",
       document: "11444777000161",
+      whatsapp: "11988880002",
     });
     expect(a.ok && b.ok).toBe(true);
     if (!a.ok || !b.ok) return;
@@ -90,6 +109,7 @@ describe("auth and multi-tenant workspace", () => {
       password: "senha-certa-99",
       companyName: "C Ltda",
       document: "04252011000110",
+      whatsapp: "11988880003",
     });
     const bad = await loginUser(client, "c@example.com", "errada");
     expect(bad.ok).toBe(false);
@@ -102,16 +122,12 @@ describe("auth and multi-tenant workspace", () => {
       password: "senha-antiga-1",
       companyName: "D Ltda",
       document: "04252011000110",
+      whatsapp: "11988880004",
     });
     expect(created.ok).toBe(true);
     if (!created.ok) return;
 
-    const wrong = await changePassword(
-      client,
-      created.data.user.id,
-      "nao-e-essa",
-      "senha-nova-99",
-    );
+    const wrong = await changePassword(client, created.data.user.id, "nao-e-essa", "senha-nova-99");
     expect(wrong.ok).toBe(false);
 
     const ok = await changePassword(
@@ -128,4 +144,3 @@ describe("auth and multi-tenant workspace", () => {
     expect(newLogin.ok).toBe(true);
   });
 });
-

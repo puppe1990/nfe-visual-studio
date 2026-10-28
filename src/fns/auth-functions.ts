@@ -1,23 +1,19 @@
 import { createServerFn } from "@tanstack/react-start";
 
-export const getCurrentUserFn = createServerFn({ method: "GET" }).handler(
-  async () => {
-    const { getMigratedDb } = await import("../db/client");
-    const { getWorkspaceForUser } = await import("../domain/auth");
-    const { readUserIdFromSession } = await import(
-      "../lib/auth-session.server"
-    );
-    const db = await getMigratedDb();
-    const userId = await readUserIdFromSession();
-    if (userId == null) {
-      return {
-        ok: false as const,
-        error: { code: "UNAUTHENTICATED", message: "Faça login" },
-      };
-    }
-    return getWorkspaceForUser(db, userId);
-  },
-);
+export const getCurrentUserFn = createServerFn({ method: "GET" }).handler(async () => {
+  const { getMigratedDb } = await import("../db/client");
+  const { getWorkspaceForUser } = await import("../domain/auth");
+  const { readUserIdFromSession } = await import("../lib/auth-session.server");
+  const db = await getMigratedDb();
+  const userId = await readUserIdFromSession();
+  if (userId == null) {
+    return {
+      ok: false as const,
+      error: { code: "UNAUTHENTICATED", message: "Faça login" },
+    };
+  }
+  return getWorkspaceForUser(db, userId);
+});
 
 export const loginFn = createServerFn({ method: "POST" })
   .validator((data: { email: string; password: string }) => data)
@@ -40,6 +36,7 @@ export const registerFn = createServerFn({ method: "POST" })
       password: string;
       companyName: string;
       document: string;
+      whatsapp: string;
     }) => data,
   )
   .handler(async ({ data }) => {
@@ -60,15 +57,11 @@ export const logoutFn = createServerFn({ method: "POST" }).handler(async () => {
 });
 
 export const changePasswordFn = createServerFn({ method: "POST" })
-  .validator(
-    (data: { currentPassword: string; nextPassword: string }) => data,
-  )
+  .validator((data: { currentPassword: string; nextPassword: string }) => data)
   .handler(async ({ data }) => {
     const { getMigratedDb } = await import("../db/client");
     const { changePassword } = await import("../domain/auth");
-    const { readUserIdFromSession } = await import(
-      "../lib/auth-session.server"
-    );
+    const { readUserIdFromSession } = await import("../lib/auth-session.server");
     const userId = await readUserIdFromSession();
     if (userId == null) {
       return {
@@ -77,10 +70,5 @@ export const changePasswordFn = createServerFn({ method: "POST" })
       };
     }
     const db = await getMigratedDb();
-    return changePassword(
-      db,
-      userId,
-      data.currentPassword,
-      data.nextPassword,
-    );
+    return changePassword(db, userId, data.currentPassword, data.nextPassword);
   });
