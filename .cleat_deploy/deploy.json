@@ -2,5 +2,5 @@
   "runtime": "node",
   "node_version": "22",
   "memory_max_mb": 512,
-  "build_command": "NITRO_PRESET=node-server npm run build"
+  "build_command": "env NITRO_PRESET=node-server npm run build"
 }
