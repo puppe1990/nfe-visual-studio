@@ -16,6 +16,7 @@ function RegisterPage() {
   const [password, setPassword] = useState("");
   const [companyName, setCompanyName] = useState("");
   const [document, setDocument] = useState("");
+  const [whatsapp, setWhatsapp] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -24,7 +25,7 @@ function RegisterPage() {
     setSaving(true);
     setError(null);
     const result = await registerFn({
-      data: { email, name, password, companyName, document },
+      data: { email, name, password, companyName, document, whatsapp },
     });
     setSaving(false);
     if (!result.ok) {
@@ -74,13 +75,21 @@ function RegisterPage() {
           />
         </label>
         <label className="block text-sm">
-          <span className="text-muted-foreground">Senha</span>
-          <PasswordInput
-            value={password}
-            onChange={setPassword}
-            minLength={8}
+          <span className="text-muted-foreground">WhatsApp</span>
+          <input
+            type="tel"
+            inputMode="tel"
+            autoComplete="tel"
+            placeholder="(11) 99999-9999"
+            className="mt-1.5 h-10 w-full rounded-md border border-border bg-background px-3"
+            value={whatsapp}
+            onChange={(e) => setWhatsapp(e.target.value)}
             required
           />
+        </label>
+        <label className="block text-sm">
+          <span className="text-muted-foreground">Senha</span>
+          <PasswordInput value={password} onChange={setPassword} minLength={8} required />
         </label>
         <label className="block text-sm">
           <span className="text-muted-foreground">Razão social</span>
