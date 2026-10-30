@@ -86,6 +86,10 @@ Para NFS-e de São Paulo o emitente precisa de CCM/IM e A1 já habilitado na Pre
 | `/clientes` | Cadastro de tomadores |
 | `/produtos` | Cadastro de produtos |
 | `/configuracoes` | Empresa, certificado e senha |
+| `/blog` | Blog público (conteúdo em `src/content/blog`) |
+| `/blog/$slug` | Artigo do blog |
+| `/sitemap.xml` | Sitemap gerado a partir das rotas públicas + posts |
+| `/robots.txt` | Robots com as telas autenticadas bloqueadas |
 
 ## Desenvolvimento
 

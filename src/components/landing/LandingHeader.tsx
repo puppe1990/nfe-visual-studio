@@ -9,7 +9,7 @@ import {
 export function LandingHeader({ signedIn }: { signedIn: boolean }) {
   return (
     <header className="relative z-10 mx-auto flex max-w-6xl items-center justify-between px-5 py-5 sm:px-8">
-      <a href="#topo" className="flex items-center gap-2.5">
+      <Link to="/" hash="topo" className="flex items-center gap-2.5">
         <span className="grid size-9 place-items-center rounded-[var(--radius)] bg-[var(--landing-ink)] text-[var(--landing-sheet)]">
           <FileCheck className="size-5" />
         </span>
@@ -19,26 +19,35 @@ export function LandingHeader({ signedIn }: { signedIn: boolean }) {
             Emissão direta
           </span>
         </span>
-      </a>
+      </Link>
       <nav className="flex items-center gap-1 sm:gap-3">
-        <a
-          href="#produto"
+        <Link
+          to="/"
+          hash="produto"
           className="hidden h-10 items-center px-2 text-sm text-[var(--landing-mute)] hover:text-[var(--landing-ink)] sm:inline-flex"
         >
           Produto
-        </a>
-        <a
-          href="#como"
+        </Link>
+        <Link
+          to="/"
+          hash="como"
           className="hidden h-10 items-center px-2 text-sm text-[var(--landing-mute)] hover:text-[var(--landing-ink)] sm:inline-flex"
         >
           Como funciona
-        </a>
-        <a
-          href="#faq"
+        </Link>
+        <Link
+          to="/blog"
+          className="hidden h-10 items-center px-2 text-sm text-[var(--landing-mute)] hover:text-[var(--landing-ink)] md:inline-flex"
+        >
+          Blog
+        </Link>
+        <Link
+          to="/"
+          hash="faq"
           className="hidden h-10 items-center px-2 text-sm text-[var(--landing-mute)] hover:text-[var(--landing-ink)] md:inline-flex"
         >
           FAQ
-        </a>
+        </Link>
         {signedIn ? (
           <Link to={landingPrimaryTo(true)} className="landing-btn">
             {landingPrimaryLabel(true, "header")}

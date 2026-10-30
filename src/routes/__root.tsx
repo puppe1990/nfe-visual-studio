@@ -11,6 +11,7 @@ import {
 import { getCurrentUserFn } from "../fns/auth-functions";
 import { useEffect, type ReactNode } from "react";
 
+import { isPublicPath } from "../lib/public-paths";
 import {
   OG_IMAGE_URL,
   SITE_DESCRIPTION,
@@ -82,8 +83,7 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
 
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
   beforeLoad: async ({ location }) => {
-    const publicPaths = ["/", "/login", "/cadastro"];
-    if (publicPaths.includes(location.pathname)) return;
+    if (isPublicPath(location.pathname)) return;
     const me = await getCurrentUserFn();
     if (!me.ok) {
       throw redirect({ to: "/login" });
