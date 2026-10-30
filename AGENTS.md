@@ -32,6 +32,7 @@ src/
   fns/          # createServerFn only. Do not put handlers in server/
   routes/       # TanStack file routes
   components/   # App UI. src/components/ui = shadcn — do not split
+  content/      # blog posts as typed blocks (one file per post + index)
   lib/          # parseNfseSearch, parseDashboardSearch, money, iso-date
 ```
 
@@ -57,6 +58,10 @@ src/
 | `/nfse` `/emitir-nfse` | NFS-e list / emit |
 | `/notas` `/emitir` | NF-e 55 list / emit |
 | `/login` `/cadastro` `/configuracoes` | Session + emitente |
+| `/blog` `/blog/$slug` | Public blog. Content lives in `content/blog/`, typed blocks — never raw HTML |
+| `/sitemap.xml` `/robots.txt` | Server handlers in `routes/*[.]ts` built from `domain/blog-sitemap.ts` |
+
+Public routes are decided by `lib/public-paths.ts` (`isPublicPath`), not by a list inside `__root.tsx`. Blog loaders use `readVisitorSignedIn` so DB failure degrades to anonymous instead of 500.
 
 Auth: cookie session. Client never statically imports `*.server.ts`. After login/cadastro navigate to `/painel`.
 
